@@ -1,4 +1,4 @@
-# omni-mcp — Unified MCP Gateway + Artifact Host for Okadoc
+# portico — Unified MCP Gateway + Artifact Host for Okadoc
 
 ## Context
 
@@ -8,16 +8,16 @@ MCP server. To be useful it needs tools from many SaaS services (Jira, Google
 Drive, GitHub, Confluence…), each of which has its own OAuth. Wiring every
 service's auth into Jean directly is brittle and doesn't scale across users.
 
-**omni-mcp** solves this as a single standalone service with two capabilities on
+**portico** solves this as a single standalone service with two capabilities on
 a shared identity core:
 
-1. **Unified MCP proxy gateway** — a user logs into the "omni channel" once via
+1. **Unified MCP proxy gateway** — a user logs into the "Portico channel" once via
    Okadoc's Microsoft Entra tenant and gets **one bearer token**. Jean connects
-   to omni-mcp with that token and sees the aggregated, namespaced tools of every
-   upstream MCP server that user has linked. omni-mcp holds each user's per-service
+   to portico with that token and sees the aggregated, namespaced tools of every
+   upstream MCP server that user has linked. portico holds each user's per-service
    OAuth tokens server-side (encrypted) and proxies calls through.
 2. **HTML artifact host** — Jean generates rich HTML (reports/dashboards) that
-   Slack can't render inline, calls `omni__publish_html`, and gets back a
+   Slack can't render inline, calls `portico__publish_html`, and gets back a
    login-gated URL to post in the thread.
 
 Target deployment: **Okadoc on Azure** (Entra identity, Azure Blob Storage, Azure
@@ -36,7 +36,7 @@ to this file). All design decisions below were confirmed with the user.
 | Upstream model | **Proxy existing remote MCP servers** (meta-MCP), namespaced tool prefixes |
 | Upstream vault | Per-`(user, upstream)` OAuth tokens, AES-256-GCM encrypted, in Postgres |
 | Store | **Azure Database for PostgreSQL** for metadata/tokens; **Azure Blob Storage** for artifact bytes |
-| Artifact view authz | **OIDC-session-gated** (signed browser cookie); default visibility = any authenticated omni user; `private` = owner-only; never anonymous |
+| Artifact view authz | **OIDC-session-gated** (signed browser cookie); default visibility = any authenticated Portico user; `private` = owner-only; never anonymous |
 | MVP proxy scope | **Tools only** (resources/prompts later) |
 | Launch upstreams | Jira (Atlassian), Google Drive, GitHub, Confluence (+ Azure DevOps candidate) — registry-driven |
 | Architecture | Ports & adapters, mirroring Jean's discipline |
@@ -56,16 +56,16 @@ Two auth planes over one identity core:
 
 | Module | Responsibility |
 |--------|----------------|
-| `config.ts` | `OMNI_*` env → typed settings |
+| `config.ts` | `PORTICO_*` env → typed settings |
 | `ports.ts` | Interfaces: `UserStore`, `TokenStore`, `ConnectionVault`, `ArtifactStore`, `OidcVerifier`, `Crypto` |
 | `identity/oidc.ts` | Entra OIDC verify + tenant enforcement (pluggable provider) |
 | `identity/session.ts` | Bearer-token mint/validate + signed session cookies |
 | `registry/registry.ts` | Declarative upstream registry `{ id, displayName, mcpUrl, transport, toolPrefix, oauth{authorizationUrl,tokenUrl,scopes,clientId,clientSecret|dynamicRegistration}, discovery? }` |
 | `upstream/oauth.ts` | Per-upstream OAuth 2.1 + PKCE flow, token exchange & refresh |
 | `upstream/client.ts` | `UpstreamClient` — MCP SDK `Client` to one upstream, user token injected; cached per `(user,upstream)`, idle-evicted |
-| `proxy/aggregator.ts` | `tools/list` fan-out → prefix names → merge + omni tools; skip-and-annotate unreachable upstreams |
+| `proxy/aggregator.ts` | `tools/list` fan-out → prefix names → merge + Portico tools; skip-and-annotate unreachable upstreams |
 | `proxy/router.ts` | `tools/call` → strip prefix → route to owning `UpstreamClient` |
-| `tools/omni.ts` | `omni__list_connections`, `omni__connect`, `omni__disconnect`, `omni__publish_html`, `omni__list_artifacts`, `omni__revoke_artifact` |
+| `tools/Portico.ts` | `portico__list_connections`, `portico__connect`, `portico__disconnect`, `portico__publish_html`, `portico__list_artifacts`, `portico__revoke_artifact` |
 | `artifacts/service.ts` | Publish → Blob put + metadata row; view authz check; revoke |
 | `db/postgres.ts` | Postgres adapter (pg) for all data ports |
 | `store/blob.ts` | `ArtifactStore` adapter over Azure Blob Storage |
@@ -100,26 +100,26 @@ Build in dependency order; each milestone is independently testable against fake
 
 1. **Scaffold** — TS project (tsconfig, package.json, esbuild/tsx, vitest, Dockerfile), `config.ts`, `ports.ts`, `health.ts`, composition-root skeleton.
 2. **Identity core** — Entra OIDC verify + Okadoc-tenant enforcement; bearer mint/validate (hashed); signed session cookies; `users`/`tokens` tables; `/login` + callback. Fakes for `OidcVerifier`.
-3. **MCP server endpoint** — `POST /mcp` Streamable HTTP with bearer middleware; expose only `omni__*` management tools first (no upstreams yet). Prove a Jean-style client can connect + list.
-4. **Upstream registry + OAuth linking** — registry module; `upstream/oauth.ts` PKCE flow; `connections` + `oauth_state` tables; AES-GCM vault; `/connect/:id` + callback; `omni__connect/list/disconnect`.
+3. **MCP server endpoint** — `POST /mcp` Streamable HTTP with bearer middleware; expose only `portico__*` management tools first (no upstreams yet). Prove a Jean-style client can connect + list.
+4. **Upstream registry + OAuth linking** — registry module; `upstream/oauth.ts` PKCE flow; `connections` + `oauth_state` tables; AES-GCM vault; `/connect/:id` + callback; `portico__connect/list/disconnect`.
 5. **Proxy engine** — `UpstreamClient`, `aggregator`, `router`; wire real `tools/list` fan-out + `tools/call` routing with namespacing; refresh + expired handling.
-6. **Artifact host** — `store/blob.ts` (Azure Blob), `artifacts/service.ts`, `omni__publish_html/list/revoke`, `/a/:id` session-gated streaming + CSP.
+6. **Artifact host** — `store/blob.ts` (Azure Blob), `artifacts/service.ts`, `portico__publish_html/list/revoke`, `/a/:id` session-gated streaming + CSP.
 7. **Azure deployment** — Dockerfile + AKS/Container Apps manifest, Key Vault-sourced secrets, Azure DB for PostgreSQL, Blob container; env docs.
-8. **Jean integration** — document/attach omni-mcp as an external MCP server in Jean's `ClaudeSDKClient` options with a user bearer token (Jean-side wiring is a follow-up; omni-mcp exposes the standard Streamable HTTP endpoint it already consumes).
+8. **Jean integration** — document/attach portico as an external MCP server in Jean's `ClaudeSDKClient` options with a user bearer token (Jean-side wiring is a follow-up; portico exposes the standard Streamable HTTP endpoint it already consumes).
 
 ## Key reuse / references
 - **Jean's ports-&-adapters pattern** (`~/Work/projects/jean/ARCHITECTURE.md`,
   `src/jean/ports.py`, `db/memory.py`+`db/postgres.py` proven against one behavioral
   suite) — mirror the domain/adapter split and the in-memory-fake test strategy.
-- **Jean's MCP tool shape** (`src/jean/slack/mcp.py`) — model `omni__*` tools on it.
-- **Jean's config discipline** (`config.py`, `OMNI_*` mirroring `JEAN_*`).
+- **Jean's MCP tool shape** (`src/jean/slack/mcp.py`) — model `portico__*` tools on it.
+- **Jean's config discipline** (`config.py`, `PORTICO_*` mirroring `JEAN_*`).
 - **`@modelcontextprotocol/sdk`** — reuse its `Server` (Streamable HTTP) and
   `Client` classes rather than hand-rolling MCP framing.
 
-## Env / config (`OMNI_*`)
-`OMNI_DATABASE_URL`, `OMNI_BASE_URL`, `OMNI_ENCRYPTION_KEY`, `OMNI_SESSION_SECRET`,
-`OMNI_ENTRA_TENANT_ID`, `OMNI_ENTRA_CLIENT_ID`, `OMNI_ENTRA_CLIENT_SECRET`,
-`OMNI_ARTIFACT_BLOB_ACCOUNT`/`OMNI_ARTIFACT_CONTAINER` (+ Azure creds/managed
+## Env / config (`PORTICO_*`)
+`PORTICO_DATABASE_URL`, `PORTICO_BASE_URL`, `PORTICO_ENCRYPTION_KEY`, `PORTICO_SESSION_SECRET`,
+`PORTICO_ENTRA_TENANT_ID`, `PORTICO_ENTRA_CLIENT_ID`, `PORTICO_ENTRA_CLIENT_SECRET`,
+`PORTICO_ARTIFACT_BLOB_ACCOUNT`/`PORTICO_ARTIFACT_CONTAINER` (+ Azure creds/managed
 identity), plus per-upstream client creds. Secrets sourced from Key Vault in prod.
 
 ## Verification
@@ -132,7 +132,7 @@ identity), plus per-upstream client creds. Secrets sourced from Key Vault in pro
   a proxied tool appears namespaced and a `tools/call` round-trips. Postgres adapter
   test gated on a test DB URL (Jean's pattern).
 - **End-to-end (manual, Azure staging):** Entra login in browser → paste token into
-  a real MCP client → connect real Jira/Drive → call a tool → `omni__publish_html`
+  a real MCP client → connect real Jira/Drive → call a tool → `portico__publish_html`
   → open `/a/:id` in an authenticated browser (and confirm a logged-out browser is
   redirected to `/login`).
 - Run before claiming done: `npm test` green + the login→connect→proxy→publish e2e path exercised.

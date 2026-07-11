@@ -14,15 +14,15 @@ async function main(): Promise<void> {
   if (settings.databaseUrl) {
     pool = new pg.Pool({ connectionString: settings.databaseUrl });
     await ensureSchema(pool);
-    console.log("omni-mcp using Postgres store");
+    console.log("portico using Postgres store");
   } else {
-    console.warn("omni-mcp OMNI_DATABASE_URL unset — using in-memory stores (non-persistent)");
+    console.warn("portico PORTICO_DATABASE_URL unset — using in-memory stores (non-persistent)");
   }
 
   const app = createApp({ settings, pool });
 
   const server = app.listen(settings.port, () => {
-    console.log(`omni-mcp listening on ${settings.baseUrl} (port ${settings.port})`);
+    console.log(`portico listening on ${settings.baseUrl} (port ${settings.port})`);
   });
 
   const shutdown = (signal: string) => {

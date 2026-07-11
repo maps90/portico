@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * Typed configuration for omni-mcp, parsed from `OMNI_*` environment variables.
+ * Typed configuration for portico, parsed from `PORTICO_*` environment variables.
  *
  * `loadConfig` takes an explicit env record so it can be unit-tested without
  * mutating `process.env`. The composition root calls `loadConfig(process.env)`.
@@ -23,21 +23,21 @@ const base64Key = (bytes: number) =>
     );
 
 const schema = z.object({
-  OMNI_BASE_URL: z.string().url(),
-  OMNI_PORT: z.coerce.number().int().positive().default(8080),
-  // Optional: when unset, omni-mcp runs with in-memory stores (single-process
+  PORTICO_BASE_URL: z.string().url(),
+  PORTICO_PORT: z.coerce.number().int().positive().default(8080),
+  // Optional: when unset, portico runs with in-memory stores (single-process
   // dev / tests). Provide a URL to use Azure Database for PostgreSQL.
-  OMNI_DATABASE_URL: z.string().min(1).optional(),
-  OMNI_ENCRYPTION_KEY: base64Key(32),
-  OMNI_SESSION_SECRET: z.string().min(16),
+  PORTICO_DATABASE_URL: z.string().min(1).optional(),
+  PORTICO_ENCRYPTION_KEY: base64Key(32),
+  PORTICO_SESSION_SECRET: z.string().min(16),
 
-  OMNI_ENTRA_TENANT_ID: z.string().min(1),
-  OMNI_ENTRA_CLIENT_ID: z.string().min(1),
-  OMNI_ENTRA_CLIENT_SECRET: z.string().min(1),
+  PORTICO_ENTRA_TENANT_ID: z.string().min(1),
+  PORTICO_ENTRA_CLIENT_ID: z.string().min(1),
+  PORTICO_ENTRA_CLIENT_SECRET: z.string().min(1),
 
-  OMNI_ARTIFACT_BLOB_ACCOUNT: z.string().min(1),
-  OMNI_ARTIFACT_CONTAINER: z.string().min(1).default("omni-artifacts"),
-  OMNI_ARTIFACT_BLOB_CONNECTION_STRING: z.string().optional(),
+  PORTICO_ARTIFACT_BLOB_ACCOUNT: z.string().min(1),
+  PORTICO_ARTIFACT_CONTAINER: z.string().min(1).default("portico-artifacts"),
+  PORTICO_ARTIFACT_BLOB_CONNECTION_STRING: z.string().optional(),
 });
 
 export interface Settings {
@@ -66,25 +66,25 @@ export function loadConfig(env: Record<string, string | undefined>): Settings {
     const issues = parsed.error.issues
       .map((i) => `  ${i.path.join(".")}: ${i.message}`)
       .join("\n");
-    throw new Error(`Invalid omni-mcp configuration:\n${issues}`);
+    throw new Error(`Invalid portico configuration:\n${issues}`);
   }
   const e = parsed.data;
   return {
-    baseUrl: e.OMNI_BASE_URL.replace(/\/$/, ""),
-    port: e.OMNI_PORT,
-    ...(e.OMNI_DATABASE_URL ? { databaseUrl: e.OMNI_DATABASE_URL } : {}),
-    encryptionKey: Buffer.from(e.OMNI_ENCRYPTION_KEY, "base64"),
-    sessionSecret: e.OMNI_SESSION_SECRET,
+    baseUrl: e.PORTICO_BASE_URL.replace(/\/$/, ""),
+    port: e.PORTICO_PORT,
+    ...(e.PORTICO_DATABASE_URL ? { databaseUrl: e.PORTICO_DATABASE_URL } : {}),
+    encryptionKey: Buffer.from(e.PORTICO_ENCRYPTION_KEY, "base64"),
+    sessionSecret: e.PORTICO_SESSION_SECRET,
     entra: {
-      tenantId: e.OMNI_ENTRA_TENANT_ID,
-      clientId: e.OMNI_ENTRA_CLIENT_ID,
-      clientSecret: e.OMNI_ENTRA_CLIENT_SECRET,
+      tenantId: e.PORTICO_ENTRA_TENANT_ID,
+      clientId: e.PORTICO_ENTRA_CLIENT_ID,
+      clientSecret: e.PORTICO_ENTRA_CLIENT_SECRET,
     },
     artifact: {
-      blobAccount: e.OMNI_ARTIFACT_BLOB_ACCOUNT,
-      container: e.OMNI_ARTIFACT_CONTAINER,
-      ...(e.OMNI_ARTIFACT_BLOB_CONNECTION_STRING
-        ? { connectionString: e.OMNI_ARTIFACT_BLOB_CONNECTION_STRING }
+      blobAccount: e.PORTICO_ARTIFACT_BLOB_ACCOUNT,
+      container: e.PORTICO_ARTIFACT_CONTAINER,
+      ...(e.PORTICO_ARTIFACT_BLOB_CONNECTION_STRING
+        ? { connectionString: e.PORTICO_ARTIFACT_BLOB_CONNECTION_STRING }
         : {}),
     },
   };

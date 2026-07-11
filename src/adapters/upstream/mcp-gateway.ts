@@ -16,7 +16,7 @@ export class McpUpstreamGateway implements UpstreamGateway {
     accessToken: string,
     fn: (client: Client) => Promise<T>,
   ): Promise<T> {
-    const client = new Client({ name: "omni-mcp-proxy", version: "0.1.0" });
+    const client = new Client({ name: "portico-proxy", version: "0.1.0" });
     const transport = new StreamableHTTPClientTransport(new URL(mcpUrl), {
       requestInit: { headers: { Authorization: `Bearer ${accessToken}` } },
     });

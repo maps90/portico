@@ -72,7 +72,7 @@ export class LinkingService {
    * `currentUserId` is the browser session's user at callback time. It MUST match
    * the user who began the flow — this binds the linking to the session and
    * prevents OAuth account-linking CSRF (a leaked/replayed state+code cannot link
-   * an upstream account into a different user's omni account).
+   * an upstream account into a different user's Portico account).
    */
   async complete(
     state: string,

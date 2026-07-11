@@ -1,9 +1,9 @@
 import type { Express, Request, Response } from "express";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { TokenStore, User } from "../../ports/identity.js";
-import { buildOmniServer, type OmniServerDeps } from "../mcp/omni-server.js";
+import { buildPorticoServer, type PorticoServerDeps } from "../mcp/portico-server.js";
 
-export interface McpRouteDeps extends OmniServerDeps {
+export interface McpRouteDeps extends PorticoServerDeps {
   tokens: TokenStore;
   baseUrl: string;
 }
@@ -30,7 +30,7 @@ export function registerMcpRoute(app: Express, deps: McpRouteDeps): void {
   const unauthorized = (res: Response) => {
     res
       .status(401)
-      .set("WWW-Authenticate", `Bearer realm="omni-mcp", resource="${deps.baseUrl}/login"`)
+      .set("WWW-Authenticate", `Bearer realm="portico", resource="${deps.baseUrl}/login"`)
       .json({
         jsonrpc: "2.0",
         error: { code: -32001, message: `Unauthorized. Sign in at ${deps.baseUrl}/login to get a token.` },
@@ -45,7 +45,7 @@ export function registerMcpRoute(app: Express, deps: McpRouteDeps): void {
       return;
     }
 
-    const server = await buildOmniServer(user, deps);
+    const server = await buildPorticoServer(user, deps);
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableJsonResponse: true,

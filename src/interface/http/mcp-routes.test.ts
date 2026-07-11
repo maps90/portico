@@ -9,16 +9,16 @@ import type { UpstreamGateway } from "../../ports/upstream.js";
 import type { Tool, CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
 const env: Record<string, string> = {
-  OMNI_BASE_URL: "http://localhost",
-  OMNI_ENCRYPTION_KEY: Buffer.alloc(32, 3).toString("base64"),
-  OMNI_SESSION_SECRET: "test-session-secret-value",
-  OMNI_ENTRA_TENANT_ID: "okadoc",
-  OMNI_ENTRA_CLIENT_ID: "cid",
-  OMNI_ENTRA_CLIENT_SECRET: "sec",
-  OMNI_ARTIFACT_BLOB_ACCOUNT: "acct",
-  OMNI_UPSTREAM_ATLASSIAN_CLIENT_ID: "atl-cid",
-  OMNI_UPSTREAM_ATLASSIAN_CLIENT_SECRET: "atl-sec",
-  OMNI_UPSTREAM_ATLASSIAN_MCP_URL: "https://mcp.atlassian.example/",
+  PORTICO_BASE_URL: "http://localhost",
+  PORTICO_ENCRYPTION_KEY: Buffer.alloc(32, 3).toString("base64"),
+  PORTICO_SESSION_SECRET: "test-session-secret-value",
+  PORTICO_ENTRA_TENANT_ID: "okadoc",
+  PORTICO_ENTRA_CLIENT_ID: "cid",
+  PORTICO_ENTRA_CLIENT_SECRET: "sec",
+  PORTICO_ARTIFACT_BLOB_ACCOUNT: "acct",
+  PORTICO_UPSTREAM_ATLASSIAN_CLIENT_ID: "atl-cid",
+  PORTICO_UPSTREAM_ATLASSIAN_CLIENT_SECRET: "atl-sec",
+  PORTICO_UPSTREAM_ATLASSIAN_MCP_URL: "https://mcp.atlassian.example/",
 };
 
 /** Fake upstream MCP: atlassian exposes one tool and echoes calls. */
@@ -82,17 +82,17 @@ describe("/mcp endpoint (integration, in-memory)", () => {
   });
 
   it("rejects an invalid bearer token", async () => {
-    await expect(connect("omni_not-a-real-token")).rejects.toThrow();
+    await expect(connect("portico_not-a-real-token")).rejects.toThrow();
   });
 
-  it("lists omni tools plus the namespaced proxied upstream tool", async () => {
+  it("lists Portico tools plus the namespaced proxied upstream tool", async () => {
     const client = await connect(token);
     try {
       const { tools } = await client.listTools();
       const names = tools.map((t) => t.name);
-      expect(names).toContain("omni__list_connections");
-      expect(names).toContain("omni__connect");
-      expect(names).toContain("omni__disconnect");
+      expect(names).toContain("portico__list_connections");
+      expect(names).toContain("portico__connect");
+      expect(names).toContain("portico__disconnect");
       // proxied from the linked atlassian upstream, namespaced
       expect(names).toContain("atlassian__create_issue");
     } finally {
@@ -115,10 +115,10 @@ describe("/mcp endpoint (integration, in-memory)", () => {
     }
   });
 
-  it("calls omni__list_connections and returns the registry services", async () => {
+  it("calls portico__list_connections and returns the registry services", async () => {
     const client = await connect(token);
     try {
-      const res = await client.callTool({ name: "omni__list_connections", arguments: {} });
+      const res = await client.callTool({ name: "portico__list_connections", arguments: {} });
       const content = res.content as Array<{ type: string; text: string }>;
       const parsed = JSON.parse(content[0]!.text) as Array<{ id: string }>;
       const ids = parsed.map((c) => c.id);

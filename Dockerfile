@@ -19,7 +19,7 @@ RUN npm ci --omit=dev
 FROM node:22-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
-ENV OMNI_PORT=8080
+ENV PORTICO_PORT=8080
 COPY package.json ./
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist

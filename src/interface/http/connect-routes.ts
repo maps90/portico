@@ -20,7 +20,7 @@ export interface ConnectRouteDeps {
 
 /**
  * `/connect/:id` + `/connect/:id/callback`: session-gated upstream OAuth linking.
- * The browser must carry a valid omni session cookie (from `/login`); the flow
+ * The browser must carry a valid Portico session cookie (from `/login`); the flow
  * redirects to the upstream's authorize URL and stores the connection on return.
  */
 export function registerConnectRoutes(app: Express, deps: ConnectRouteDeps): void {
@@ -40,7 +40,7 @@ export function registerConnectRoutes(app: Express, deps: ConnectRouteDeps): voi
       if (err instanceof ConnectionNotFoundError) {
         res.status(404).send(page("Unknown service", `<h1>Unknown service</h1><p>No upstream '${escapeHtml(id)}'.</p>`));
       } else if (err instanceof UpstreamNotConfiguredError) {
-        res.status(503).send(page("Service unavailable", `<h1>Not available</h1><p>'${escapeHtml(id)}' is not configured on this omni instance.</p>`));
+        res.status(503).send(page("Service unavailable", `<h1>Not available</h1><p>'${escapeHtml(id)}' is not configured on this Portico instance.</p>`));
       } else {
         console.error("connect begin error", err);
         res.status(502).send(page("Connect error", "<h1>Connect error</h1><p>Could not start the connection. Please try again.</p>"));
@@ -72,7 +72,7 @@ export function registerConnectRoutes(app: Express, deps: ConnectRouteDeps): voi
       res.status(200).send(
         page(
           "Service connected",
-          `<h1>Connected ✓</h1><p>'${escapeHtml(upstreamId)}' is now linked to your omni account.
+          `<h1>Connected ✓</h1><p>'${escapeHtml(upstreamId)}' is now linked to your Portico account.
            You can close this tab and return to Jean — its tools are available immediately.</p>`,
         ),
       );

@@ -1,7 +1,7 @@
 /**
  * Tool namespacing. Upstream tools are re-exposed as `<prefix>__<name>` so tools
  * from different services never collide and calls can be routed back. Pure
- * functions — used by the aggregator, the router, and the omni management tools.
+ * functions — used by the aggregator, the router, and the Portico management tools.
  */
 
 const SEP = "__";

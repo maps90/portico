@@ -15,7 +15,7 @@ export interface IdentityDeps {
 }
 
 /**
- * Identity use-cases: start an OIDC login and complete it into an omni user +
+ * Identity use-cases: start an OIDC login and complete it into an Portico user +
  * bearer token. Depends only on ports, so it is tested against in-memory fakes.
  */
 export class IdentityService {

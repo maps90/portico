@@ -3,7 +3,7 @@ import { randomBytes, createCipheriv, createDecipheriv } from "node:crypto";
 /**
  * AES-256-GCM envelope for the upstream-token vault. Ciphertext layout:
  *   base64( iv[12] || authTag[16] || ciphertext )
- * The 32-byte key comes from `OMNI_ENCRYPTION_KEY` (Key Vault in prod).
+ * The 32-byte key comes from `PORTICO_ENCRYPTION_KEY` (Key Vault in prod).
  */
 export class AesGcmCrypto {
   constructor(private readonly key: Buffer) {

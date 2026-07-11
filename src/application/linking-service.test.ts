@@ -63,14 +63,14 @@ describe("LinkingService", () => {
         ["github", unconfigured],
       ]),
     );
-    svc = new LinkingService({ registry, vault, oauthState, oauthClient, baseUrl: "https://omni.okadoc.com" });
+    svc = new LinkingService({ registry, vault, oauthState, oauthClient, baseUrl: "https://portico.okadoc.com" });
   });
 
   it("begin: stores state and returns an authorize URL with the callback redirect", async () => {
     const { authorizeUrl } = await svc.begin(user, "atlassian");
     expect(authorizeUrl).toContain("state=");
     expect(authorizeUrl).toContain("code_challenge=");
-    expect(decodeURIComponent(authorizeUrl)).toContain("https://omni.okadoc.com/connect/atlassian/callback");
+    expect(decodeURIComponent(authorizeUrl)).toContain("https://portico.okadoc.com/connect/atlassian/callback");
   });
 
   it("begin: rejects unknown and unconfigured upstreams", async () => {

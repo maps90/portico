@@ -1,6 +1,6 @@
-# Deploying omni-mcp to Azure (Okadoc)
+# Deploying portico to Azure (Okadoc)
 
-omni-mcp ships as a single container. This guide targets **Azure Container Apps**
+portico ships as a single container. This guide targets **Azure Container Apps**
 with **Entra** identity, **Azure Database for PostgreSQL**, **Azure Blob Storage**
 for artifacts, and **Key Vault** for secrets. (AKS works too — the container and
 env vars are identical; deploy it as a Deployment + Service + Ingress and mount
@@ -10,13 +10,13 @@ the same secrets.)
 
 | Resource | Notes |
 |---|---|
-| Resource group | e.g. `omni-rg` |
+| Resource group | e.g. `portico-rg` |
 | Azure Container Registry (ACR) | holds the image |
 | Container Apps Environment | with a Log Analytics workspace |
 | User-assigned managed identity | grant it: **AcrPull** on ACR, **Key Vault Secrets User** on the vault, **Storage Blob Data Contributor** on the artifact storage account |
 | Key Vault | holds the secrets in step 3 |
-| Azure Database for PostgreSQL (Flexible Server) | create a database `omni`; note the connection string |
-| Storage account + **private** Blob container `omni-artifacts` | no public access |
+| Azure Database for PostgreSQL (Flexible Server) | create a database `portico`; note the connection string |
+| Storage account + **private** Blob container `portico-artifacts` | no public access |
 
 ## 1. Entra app registration (identity)
 
@@ -31,7 +31,7 @@ the same secrets.)
 For each upstream (Atlassian, Google, GitHub, …) register an OAuth app with its
 vendor and add the redirect URI `https://<your-domain>/connect/<id>/callback`
 (e.g. `/connect/atlassian/callback`). Put each client id in env and each client
-secret in Key Vault. Also set `OMNI_UPSTREAM_<ID>_MCP_URL` to the vendor's remote
+secret in Key Vault. Also set `PORTICO_UPSTREAM_<ID>_MCP_URL` to the vendor's remote
 MCP endpoint where the built-in default is empty or differs.
 
 ## 3. Key Vault secrets
@@ -39,35 +39,35 @@ MCP endpoint where the built-in default is empty or differs.
 Generate and store (names must match `containerapp.bicep`):
 
 ```bash
-az keyvault secret set --vault-name omni-kv --name omni-database-url        --value "postgresql://USER:PASS@HOST:5432/omni?sslmode=require"
-az keyvault secret set --vault-name omni-kv --name omni-encryption-key      --value "$(openssl rand -base64 32)"
-az keyvault secret set --vault-name omni-kv --name omni-session-secret      --value "$(openssl rand -base64 32)"
-az keyvault secret set --vault-name omni-kv --name omni-entra-client-secret --value "<entra client secret>"
+az keyvault secret set --vault-name portico-kv --name portico-database-url        --value "postgresql://USER:PASS@HOST:5432/portico?sslmode=require"
+az keyvault secret set --vault-name portico-kv --name portico-encryption-key      --value "$(openssl rand -base64 32)"
+az keyvault secret set --vault-name portico-kv --name portico-session-secret      --value "$(openssl rand -base64 32)"
+az keyvault secret set --vault-name portico-kv --name portico-entra-client-secret --value "<entra client secret>"
 # per upstream, e.g.:
-az keyvault secret set --vault-name omni-kv --name omni-upstream-atlassian-client-secret --value "<...>"
+az keyvault secret set --vault-name portico-kv --name portico-upstream-atlassian-client-secret --value "<...>"
 ```
 
-`OMNI_ENCRYPTION_KEY` must be a base64-encoded **32 bytes** (AES-256). Rotating it
+`PORTICO_ENCRYPTION_KEY` must be a base64-encoded **32 bytes** (AES-256). Rotating it
 makes existing vault-stored upstream tokens undecryptable (users re-connect).
 
 ## 4. Build & push the image
 
 ```bash
-az acr build --registry <acr-name> --image omni-mcp:1.0.0 .
+az acr build --registry <acr-name> --image portico:1.0.0 .
 ```
 
 ## 5. Deploy
 
 ```bash
 az deployment group create \
-  --resource-group omni-rg \
+  --resource-group portico-rg \
   --template-file deploy/containerapp.bicep \
   --parameters \
      environmentId=<container-apps-env-resource-id> \
-     image=<acr>.azurecr.io/omni-mcp:1.0.0 \
+     image=<acr>.azurecr.io/portico:1.0.0 \
      acrLoginServer=<acr>.azurecr.io \
      managedIdentityId=<user-assigned-mi-resource-id> \
-     keyVaultUri=https://omni-kv.vault.azure.net/ \
+     keyVaultUri=https://portico-kv.vault.azure.net/ \
      baseUrl=https://<your-domain> \
      entraTenantId=<okadoc-tenant-id> \
      entraClientId=<entra-client-id> \
@@ -75,7 +75,7 @@ az deployment group create \
 ```
 
 Map `baseUrl`'s domain to the app's ingress FQDN (output `fqdn`) via a CNAME +
-Container Apps custom domain + managed certificate. `OMNI_BASE_URL` **must** equal
+Container Apps custom domain + managed certificate. `PORTICO_BASE_URL` **must** equal
 the public URL — it builds the OAuth redirect URIs and artifact links.
 
 ## 6. Post-deploy checks

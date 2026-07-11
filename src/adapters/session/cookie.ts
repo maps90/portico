@@ -2,7 +2,7 @@ import { SignJWT, jwtVerify } from "jose";
 
 /**
  * Signed browser session cookie for artifact viewing. A short-lived HS256 JWT
- * carrying the omni user id, signed with `OMNI_SESSION_SECRET`. Used only for
+ * carrying the Portico user id, signed with `PORTICO_SESSION_SECRET`. Used only for
  * the `/a/:id` viewer and the `/connect/*` flow — the `/mcp` endpoint uses
  * opaque bearer tokens instead.
  */

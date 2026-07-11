@@ -20,7 +20,7 @@ export interface ConnectionsDeps {
 }
 
 /**
- * Read/'connect'/disconnect use-cases behind the `omni__*` management tools.
+ * Read/'connect'/disconnect use-cases behind the `portico__*` management tools.
  * Merges the static registry (what exists) with the user's vault (what they've
  * linked) into a single view.
  */

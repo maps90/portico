@@ -1,11 +1,11 @@
-# omni-mcp — Architecture
+# portico — Architecture
 
-omni-mcp is a single TypeScript service with **two capabilities on a shared
+portico is a single TypeScript service with **two capabilities on a shared
 identity core**:
 
 1. **Unified MCP proxy gateway** — Jean (or any MCP client) connects with **one
    bearer token per OIDC user** and sees the aggregated, namespaced tools of every
-   upstream MCP server that user has linked. omni-mcp holds each user's per-service
+   upstream MCP server that user has linked. portico holds each user's per-service
    OAuth tokens server-side (AES-256-GCM encrypted) and proxies calls through.
 2. **HTML artifact host** — clients publish rich HTML and get back a login-gated
    URL to share (e.g. Jean posting a report into a Slack thread).
@@ -43,7 +43,7 @@ adapters/     (organisms)        Postgres, Azure Blob, Entra OIDC, crypto, MCP c
 | `src/application/` | Use-cases (identity, connections, proxy, artifacts) orchestrating domain + ports. | `domain/`, `ports/` |
 | `src/adapters/` | Concrete infra implementing ports (pg, Azure SDKs, jose, node:crypto, MCP SDK client). | `ports/`, `domain/`, external SDKs |
 | `src/interface/` | Delivery: Express routes, the Streamable-HTTP `/mcp` endpoint, and the composition root that builds adapters and injects them. | everything |
-| `src/config.ts` | Cross-cutting: `OMNI_*` env → typed `Settings`. | zod |
+| `src/config.ts` | Cross-cutting: `PORTICO_*` env → typed `Settings`. | zod |
 | `src/main.ts` | Bootstrap: load config, open pool, start server. | `config`, `interface` |
 
 ## Two auth planes
@@ -63,5 +63,5 @@ proxy path). One end-to-end test covers login → mint token → connect a fake
 upstream → list + call a proxied tool. This mirrors the sibling `jean` project,
 where the in-memory and Postgres adapters are proven against one behavioral suite.
 
-See `docs/superpowers/specs/2026-07-11-omni-mcp-design.md` for the full design and
+See `docs/superpowers/specs/2026-07-11-portico-design.md` for the full design and
 implementation milestones.

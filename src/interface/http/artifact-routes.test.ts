@@ -8,13 +8,13 @@ import { buildApp, type BuiltApp } from "./server.js";
 import { SESSION_COOKIE } from "./identity-routes.js";
 
 const env: Record<string, string> = {
-  OMNI_BASE_URL: "http://localhost",
-  OMNI_ENCRYPTION_KEY: Buffer.alloc(32, 5).toString("base64"),
-  OMNI_SESSION_SECRET: "test-session-secret-value",
-  OMNI_ENTRA_TENANT_ID: "okadoc",
-  OMNI_ENTRA_CLIENT_ID: "cid",
-  OMNI_ENTRA_CLIENT_SECRET: "sec",
-  OMNI_ARTIFACT_BLOB_ACCOUNT: "acct",
+  PORTICO_BASE_URL: "http://localhost",
+  PORTICO_ENCRYPTION_KEY: Buffer.alloc(32, 5).toString("base64"),
+  PORTICO_SESSION_SECRET: "test-session-secret-value",
+  PORTICO_ENTRA_TENANT_ID: "okadoc",
+  PORTICO_ENTRA_CLIENT_ID: "cid",
+  PORTICO_ENTRA_CLIENT_SECRET: "sec",
+  PORTICO_ARTIFACT_BLOB_ACCOUNT: "acct",
 };
 
 describe("artifact host (integration, in-memory)", () => {
@@ -46,7 +46,7 @@ describe("artifact host (integration, in-memory)", () => {
     });
     await client.connect(transport);
     try {
-      const res = await client.callTool({ name: "omni__publish_html", arguments: { html, title: "Report" } });
+      const res = await client.callTool({ name: "portico__publish_html", arguments: { html, title: "Report" } });
       const content = res.content as Array<{ text: string }>;
       const url = content[0]!.text.match(/http:\/\/\S+/)![0];
       return url;
@@ -55,7 +55,7 @@ describe("artifact host (integration, in-memory)", () => {
     }
   };
 
-  it("publishes via the omni tool and serves it to a logged-in browser with a strict CSP", async () => {
+  it("publishes via the Portico tool and serves it to a logged-in browser with a strict CSP", async () => {
     const url = await publishViaMcp("<h1>Quarterly report</h1>");
     const path = new URL(url).pathname;
 
@@ -85,7 +85,7 @@ describe("artifact host (integration, in-memory)", () => {
       requestInit: { headers: { Authorization: `Bearer ${token}` } },
     });
     await client.connect(transport);
-    await client.callTool({ name: "omni__revoke_artifact", arguments: { id } });
+    await client.callTool({ name: "portico__revoke_artifact", arguments: { id } });
     await client.close();
 
     const res = await fetch(`${origin}/a/${id}`, { headers: { cookie }, redirect: "manual" });

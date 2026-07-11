@@ -53,7 +53,7 @@ describe("ProxyService", () => {
     vault = new InMemoryConnectionVault();
     gateway = new FakeGateway();
     const access = new AccessTokenProvider({ vault, oauthClient: new NoRefresh(), registry });
-    svc = new ProxyService({ registry, vault, access, gateway, baseUrl: "https://omni" });
+    svc = new ProxyService({ registry, vault, access, gateway, baseUrl: "https://portico" });
     await vault.put({ userId: "u1", upstreamId: "atlassian", accessToken: "AT", refreshToken: null, expiresAt: null, scopes: [], status: "active" });
   });
 
@@ -78,7 +78,7 @@ describe("ProxyService", () => {
   it("returns a connect prompt (isError) for a not-connected upstream", async () => {
     const res = await svc.callTool(user, "github__anything", {});
     expect(res.isError).toBe(true);
-    expect((res.content as Array<{ text: string }>)[0]!.text).toContain("https://omni/connect/github");
+    expect((res.content as Array<{ text: string }>)[0]!.text).toContain("https://portico/connect/github");
   });
 
   it("errors clearly for an unknown tool prefix", async () => {

@@ -10,7 +10,7 @@ import type { ConnectionsService } from "../../application/connections-service.j
 import type { ProxyService } from "../../application/proxy-service.js";
 import type { ArtifactsService } from "../../application/artifacts-service.js";
 
-export interface OmniServerDeps {
+export interface PorticoServerDeps {
   connections: ConnectionsService;
   proxy: ProxyService;
   artifacts: ArtifactsService;
@@ -22,13 +22,13 @@ const text = (value: unknown): CallToolResult => ({
   ],
 });
 
-interface OmniTool {
+interface PorticoTool {
   def: Tool;
   handle: (user: User, args: Record<string, unknown>) => Promise<CallToolResult>;
 }
 
-/** The `omni__*` management tools, defined as raw MCP tool specs + handlers. */
-function omniTools(deps: OmniServerDeps): OmniTool[] {
+/** The `portico__*` management tools, defined as raw MCP tool specs + handlers. */
+function porticoTools(deps: PorticoServerDeps): PorticoTool[] {
   const serviceArg: Tool["inputSchema"] = {
     type: "object",
     properties: { service: { type: "string", description: "upstream service id, e.g. 'atlassian'" } },
@@ -37,7 +37,7 @@ function omniTools(deps: OmniServerDeps): OmniTool[] {
   return [
     {
       def: {
-        name: "omni__list_connections",
+        name: "portico__list_connections",
         description:
           "List every upstream service, its state (connected / expired / not_connected / unavailable), and a connect link where applicable.",
         inputSchema: { type: "object", properties: {} },
@@ -46,7 +46,7 @@ function omniTools(deps: OmniServerDeps): OmniTool[] {
     },
     {
       def: {
-        name: "omni__connect",
+        name: "portico__connect",
         description:
           "Return a URL the user should open to authorize a service (e.g. 'atlassian', 'google-drive', 'github'). Share the URL with the user.",
         inputSchema: serviceArg,
@@ -56,14 +56,14 @@ function omniTools(deps: OmniServerDeps): OmniTool[] {
         const list = await deps.connections.list(user);
         const entry = list.find((c) => c.id === service);
         if (!entry) return text(`Unknown service '${service}'. Available: ${list.map((c) => c.id).join(", ")}`);
-        if (entry.state === "unavailable") return text(`Service '${service}' is not configured on this omni instance.`);
+        if (entry.state === "unavailable") return text(`Service '${service}' is not configured on this Portico instance.`);
         if (entry.state === "connected") return text(`'${service}' is already connected.`);
         return text(`Open this URL to connect ${entry.displayName}:\n${entry.connectUrl}`);
       },
     },
     {
       def: {
-        name: "omni__disconnect",
+        name: "portico__disconnect",
         description: "Forget the stored authorization for a service, so its tools stop working until reconnected.",
         inputSchema: serviceArg,
       },
@@ -75,9 +75,9 @@ function omniTools(deps: OmniServerDeps): OmniTool[] {
     },
     {
       def: {
-        name: "omni__publish_html",
+        name: "portico__publish_html",
         description:
-          "Publish an HTML document (report/dashboard) and get back a login-gated URL to share (e.g. post into a Slack thread). Only authenticated omni users can open it.",
+          "Publish an HTML document (report/dashboard) and get back a login-gated URL to share (e.g. post into a Slack thread). Only authenticated Portico users can open it.",
         inputSchema: {
           type: "object",
           properties: {
@@ -86,7 +86,7 @@ function omniTools(deps: OmniServerDeps): OmniTool[] {
             visibility: {
               type: "string",
               enum: ["authenticated", "private"],
-              description: "'authenticated' (any signed-in omni user, default) or 'private' (only you)",
+              description: "'authenticated' (any signed-in Portico user, default) or 'private' (only you)",
             },
             expiresInSeconds: { type: "number", description: "optional lifetime; omit for no expiry" },
           },
@@ -109,7 +109,7 @@ function omniTools(deps: OmniServerDeps): OmniTool[] {
     },
     {
       def: {
-        name: "omni__list_artifacts",
+        name: "portico__list_artifacts",
         description: "List HTML artifacts you have published, with their URLs and status.",
         inputSchema: { type: "object", properties: {} },
       },
@@ -131,7 +131,7 @@ function omniTools(deps: OmniServerDeps): OmniTool[] {
     },
     {
       def: {
-        name: "omni__revoke_artifact",
+        name: "portico__revoke_artifact",
         description: "Revoke a published artifact by id so its URL stops working.",
         inputSchema: {
           type: "object",
@@ -149,19 +149,19 @@ function omniTools(deps: OmniServerDeps): OmniTool[] {
 
 /**
  * Builds a per-user, per-request MCP gateway server. `tools/list` merges the
- * omni management tools with the user's namespaced upstream tools; `tools/call`
- * dispatches omni tools locally and routes everything else to the proxy.
+ * Portico management tools with the user's namespaced upstream tools; `tools/call`
+ * dispatches Portico tools locally and routes everything else to the proxy.
  */
-export async function buildOmniServer(user: User, deps: OmniServerDeps): Promise<Server> {
+export async function buildPorticoServer(user: User, deps: PorticoServerDeps): Promise<Server> {
   const server = new Server(
-    { name: "omni-mcp", version: "0.1.0" },
+    { name: "portico", version: "0.1.0" },
     {
       capabilities: { tools: {} },
       instructions:
-        "Unified gateway. omni__list_connections shows linked services; omni__connect returns a link to authorize a new one. Other tools are namespaced <service>__<tool>.",
+        "Unified gateway. portico__list_connections shows linked services; portico__connect returns a link to authorize a new one. Other tools are namespaced <service>__<tool>.",
     },
   );
-  const locals = omniTools(deps);
+  const locals = porticoTools(deps);
   const localByName = new Map(locals.map((t) => [t.def.name, t] as const));
 
   server.setRequestHandler(ListToolsRequestSchema, async () => {

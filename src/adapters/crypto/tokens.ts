@@ -7,7 +7,7 @@ import { randomBytes, createHash } from "node:crypto";
  * these helpers so they stay equivalent.
  */
 
-const TOKEN_PREFIX = "omni_";
+const TOKEN_PREFIX = "portico_";
 
 export function generateBearerToken(): string {
   return TOKEN_PREFIX + randomBytes(32).toString("base64url");

@@ -1,4 +1,4 @@
-// Azure Container App for omni-mcp.
+// Azure Container App for portico.
 //
 // Assumes these already exist (create once per environment, outside this file):
 //   - a Container Apps managed Environment (environmentId)
@@ -16,12 +16,12 @@
 param location string = resourceGroup().location
 
 @description('Container app name')
-param name string = 'omni-mcp'
+param name string = 'portico'
 
 @description('Resource id of the Container Apps managed environment')
 param environmentId string
 
-@description('Full image reference, e.g. myacr.azurecr.io/omni-mcp:1.0.0')
+@description('Full image reference, e.g. myacr.azurecr.io/portico:1.0.0')
 param image string
 
 @description('ACR login server, e.g. myacr.azurecr.io')
@@ -30,10 +30,10 @@ param acrLoginServer string
 @description('Resource id of the user-assigned managed identity')
 param managedIdentityId string
 
-@description('Key Vault URI, e.g. https://omni-kv.vault.azure.net/')
+@description('Key Vault URI, e.g. https://portico-kv.vault.azure.net/')
 param keyVaultUri string
 
-@description('Public base URL, e.g. https://omni.okadoc.com')
+@description('Public base URL, e.g. https://portico.okadoc.com')
 param baseUrl string
 
 @description('Okadoc Entra tenant id')
@@ -46,7 +46,7 @@ param entraClientId string
 param artifactBlobAccount string
 
 @description('Artifact blob container name')
-param artifactContainer string = 'omni-artifacts'
+param artifactContainer string = 'portico-artifacts'
 
 @description('Min / max replicas')
 param minReplicas int = 1
@@ -78,12 +78,12 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       secrets: [
-        { name: 'database-url', keyVaultUrl: '${keyVaultUri}secrets/omni-database-url', identity: managedIdentityId }
-        { name: 'encryption-key', keyVaultUrl: '${keyVaultUri}secrets/omni-encryption-key', identity: managedIdentityId }
-        { name: 'session-secret', keyVaultUrl: '${keyVaultUri}secrets/omni-session-secret', identity: managedIdentityId }
-        { name: 'entra-client-secret', keyVaultUrl: '${keyVaultUri}secrets/omni-entra-client-secret', identity: managedIdentityId }
+        { name: 'database-url', keyVaultUrl: '${keyVaultUri}secrets/portico-database-url', identity: managedIdentityId }
+        { name: 'encryption-key', keyVaultUrl: '${keyVaultUri}secrets/portico-encryption-key', identity: managedIdentityId }
+        { name: 'session-secret', keyVaultUrl: '${keyVaultUri}secrets/portico-session-secret', identity: managedIdentityId }
+        { name: 'entra-client-secret', keyVaultUrl: '${keyVaultUri}secrets/portico-entra-client-secret', identity: managedIdentityId }
         // Add one secret per configured upstream, e.g.:
-        // { name: 'upstream-atlassian-client-secret', keyVaultUrl: '${keyVaultUri}secrets/omni-upstream-atlassian-client-secret', identity: managedIdentityId }
+        // { name: 'upstream-atlassian-client-secret', keyVaultUrl: '${keyVaultUri}secrets/portico-upstream-atlassian-client-secret', identity: managedIdentityId }
       ]
     }
     template: {
@@ -96,19 +96,19 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
             memory: '1Gi'
           }
           env: [
-            { name: 'OMNI_BASE_URL', value: baseUrl }
-            { name: 'OMNI_PORT', value: '8080' }
-            { name: 'OMNI_ENTRA_TENANT_ID', value: entraTenantId }
-            { name: 'OMNI_ENTRA_CLIENT_ID', value: entraClientId }
-            { name: 'OMNI_ARTIFACT_BLOB_ACCOUNT', value: artifactBlobAccount }
-            { name: 'OMNI_ARTIFACT_CONTAINER', value: artifactContainer }
-            { name: 'OMNI_DATABASE_URL', secretRef: 'database-url' }
-            { name: 'OMNI_ENCRYPTION_KEY', secretRef: 'encryption-key' }
-            { name: 'OMNI_SESSION_SECRET', secretRef: 'session-secret' }
-            { name: 'OMNI_ENTRA_CLIENT_SECRET', secretRef: 'entra-client-secret' }
+            { name: 'PORTICO_BASE_URL', value: baseUrl }
+            { name: 'PORTICO_PORT', value: '8080' }
+            { name: 'PORTICO_ENTRA_TENANT_ID', value: entraTenantId }
+            { name: 'PORTICO_ENTRA_CLIENT_ID', value: entraClientId }
+            { name: 'PORTICO_ARTIFACT_BLOB_ACCOUNT', value: artifactBlobAccount }
+            { name: 'PORTICO_ARTIFACT_CONTAINER', value: artifactContainer }
+            { name: 'PORTICO_DATABASE_URL', secretRef: 'database-url' }
+            { name: 'PORTICO_ENCRYPTION_KEY', secretRef: 'encryption-key' }
+            { name: 'PORTICO_SESSION_SECRET', secretRef: 'session-secret' }
+            { name: 'PORTICO_ENTRA_CLIENT_SECRET', secretRef: 'entra-client-secret' }
             // Upstream creds (ids are non-secret env, secrets via secretRef):
-            // { name: 'OMNI_UPSTREAM_ATLASSIAN_CLIENT_ID', value: '...' }
-            // { name: 'OMNI_UPSTREAM_ATLASSIAN_CLIENT_SECRET', secretRef: 'upstream-atlassian-client-secret' }
+            // { name: 'PORTICO_UPSTREAM_ATLASSIAN_CLIENT_ID', value: '...' }
+            // { name: 'PORTICO_UPSTREAM_ATLASSIAN_CLIENT_SECRET', secretRef: 'upstream-atlassian-client-secret' }
           ]
           probes: [
             { type: 'Liveness', httpGet: { path: '/healthz', port: 8080 }, periodSeconds: 15 }

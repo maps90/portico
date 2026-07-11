@@ -16,12 +16,12 @@ describe("ArtifactsService", () => {
   beforeEach(() => {
     store = new InMemoryArtifactStore();
     meta = new InMemoryArtifactMetaStore();
-    svc = new ArtifactsService({ store, meta, baseUrl: "https://omni.okadoc.com" });
+    svc = new ArtifactsService({ store, meta, baseUrl: "https://portico.okadoc.com" });
   });
 
   it("publishes and returns a viewable URL, storing the bytes", async () => {
     const { id, url } = await svc.publish(owner, { html: "<h1>Report</h1>", title: "Q3" });
-    expect(url).toBe(`https://omni.okadoc.com/a/${id}`);
+    expect(url).toBe(`https://portico.okadoc.com/a/${id}`);
     const { html, meta: m } = await svc.view(owner.id, id);
     expect(html.toString("utf8")).toBe("<h1>Report</h1>");
     expect(m.title).toBe("Q3");

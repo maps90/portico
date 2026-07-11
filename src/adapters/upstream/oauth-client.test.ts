@@ -23,7 +23,7 @@ describe("FetchUpstreamOAuthClient", () => {
   afterEach(() => vi.restoreAllMocks());
 
   it("builds an authorize URL with PKCE + provider params", () => {
-    const url = new URL(client.buildAuthorizeUrl(entry, "st8", "chal", "https://omni/cb"));
+    const url = new URL(client.buildAuthorizeUrl(entry, "st8", "chal", "https://portico/cb"));
     const q = url.searchParams;
     expect(url.origin + url.pathname).toBe("https://accounts.google.com/o/oauth2/v2/auth");
     expect(q.get("client_id")).toBe("cid");
@@ -32,7 +32,7 @@ describe("FetchUpstreamOAuthClient", () => {
     expect(q.get("state")).toBe("st8");
     expect(q.get("scope")).toBe("drive.readonly email");
     expect(q.get("access_type")).toBe("offline");
-    expect(q.get("redirect_uri")).toBe("https://omni/cb");
+    expect(q.get("redirect_uri")).toBe("https://portico/cb");
   });
 
   it("parses a token response and computes an expiry", async () => {
@@ -43,7 +43,7 @@ describe("FetchUpstreamOAuthClient", () => {
       ),
     );
     const before = Date.now();
-    const tokens = await client.exchangeCode(entry, "code", "verifier", "https://omni/cb");
+    const tokens = await client.exchangeCode(entry, "code", "verifier", "https://portico/cb");
     expect(tokens.accessToken).toBe("AT");
     expect(tokens.refreshToken).toBe("RT");
     expect(tokens.scopes).toEqual(["a", "b"]);
@@ -66,6 +66,6 @@ describe("FetchUpstreamOAuthClient", () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response("bad", { status: 400 }),
     );
-    await expect(client.exchangeCode(entry, "c", "v", "https://omni/cb")).rejects.toThrow(/failed/);
+    await expect(client.exchangeCode(entry, "c", "v", "https://portico/cb")).rejects.toThrow(/failed/);
   });
 });

@@ -32,14 +32,14 @@ describe("ConnectionsService", () => {
         ["github", entry("github", false)],
       ]),
     );
-    svc = new ConnectionsService({ registry, vault, baseUrl: "https://omni.okadoc.com" });
+    svc = new ConnectionsService({ registry, vault, baseUrl: "https://portico.okadoc.com" });
   });
 
   it("reports a configured-but-unlinked service as not_connected with a connect URL", async () => {
     const list = await svc.list(user);
     const atl = list.find((c) => c.id === "atlassian")!;
     expect(atl.state).toBe("not_connected");
-    expect(atl.connectUrl).toBe("https://omni.okadoc.com/connect/atlassian");
+    expect(atl.connectUrl).toBe("https://portico.okadoc.com/connect/atlassian");
   });
 
   it("reports an unconfigured service as unavailable with no connect URL", async () => {

@@ -26,7 +26,7 @@ export interface ArtifactsDeps {
 /**
  * HTML artifact host use-cases. Publish stores bytes in blob storage + a
  * metadata row and returns a login-gated URL. View enforces visibility
- * (`authenticated` = any signed-in omni user; `private` = owner only) and treats
+ * (`authenticated` = any signed-in Portico user; `private` = owner only) and treats
  * revoked/expired artifacts as not found.
  */
 export class ArtifactsService {

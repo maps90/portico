@@ -8,17 +8,17 @@ import type { UpstreamOAuthClient, UpstreamTokens } from "../../ports/oauth.js";
 import type { UpstreamEntry } from "../../domain/upstream.js";
 
 const env: Record<string, string> = {
-  OMNI_BASE_URL: "http://localhost",
-  OMNI_ENCRYPTION_KEY: Buffer.alloc(32, 9).toString("base64"),
-  OMNI_SESSION_SECRET: "test-session-secret-value",
-  OMNI_ENTRA_TENANT_ID: "okadoc",
-  OMNI_ENTRA_CLIENT_ID: "cid",
-  OMNI_ENTRA_CLIENT_SECRET: "sec",
-  OMNI_ARTIFACT_BLOB_ACCOUNT: "acct",
+  PORTICO_BASE_URL: "http://localhost",
+  PORTICO_ENCRYPTION_KEY: Buffer.alloc(32, 9).toString("base64"),
+  PORTICO_SESSION_SECRET: "test-session-secret-value",
+  PORTICO_ENTRA_TENANT_ID: "okadoc",
+  PORTICO_ENTRA_CLIENT_ID: "cid",
+  PORTICO_ENTRA_CLIENT_SECRET: "sec",
+  PORTICO_ARTIFACT_BLOB_ACCOUNT: "acct",
   // configure the atlassian upstream so linking is allowed
-  OMNI_UPSTREAM_ATLASSIAN_CLIENT_ID: "atl-cid",
-  OMNI_UPSTREAM_ATLASSIAN_CLIENT_SECRET: "atl-sec",
-  OMNI_UPSTREAM_ATLASSIAN_MCP_URL: "https://mcp.atlassian.example/",
+  PORTICO_UPSTREAM_ATLASSIAN_CLIENT_ID: "atl-cid",
+  PORTICO_UPSTREAM_ATLASSIAN_CLIENT_SECRET: "atl-sec",
+  PORTICO_UPSTREAM_ATLASSIAN_MCP_URL: "https://mcp.atlassian.example/",
 };
 
 class FakeUpstreamOAuth implements UpstreamOAuthClient {

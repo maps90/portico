@@ -7,8 +7,8 @@ import { TenantForbiddenError } from "../../domain/errors.js";
 import { parseCookies, serializeCookie } from "./cookies.js";
 import { escapeHtml, page } from "./html.js";
 
-export const SESSION_COOKIE = "omni_session";
-const STATE_COOKIE = "omni_login_state";
+export const SESSION_COOKIE = "portico_session";
+const STATE_COOKIE = "portico_login_state";
 
 export interface IdentityRouteDeps {
   identity: IdentityService;
@@ -55,18 +55,18 @@ export function registerIdentityRoutes(app: Express, deps: IdentityRouteDeps): v
       ]);
       res.status(200).send(
         page(
-          "Connected to omni",
+          "Connected to Portico",
           `<h1>You're signed in${user.email ? `, ${escapeHtml(user.email)}` : ""}</h1>
-           <p>Copy this token into Jean's configuration as your omni-mcp bearer token.
+           <p>Copy this token into Jean's configuration as your portico bearer token.
            <strong>It is shown only once.</strong></p>
            <pre>${escapeHtml(token)}</pre>
            <p class="muted">Then link your services (Jira, Google Drive, …) from the
-           omni tools inside Jean, or by visiting the connect links they return.</p>`,
+           Portico tools inside Jean, or by visiting the connect links they return.</p>`,
         ),
       );
     } catch (err) {
       if (err instanceof TenantForbiddenError) {
-        res.status(403).send(page("Access denied", "<h1>Access denied</h1><p>This omni instance is restricted to Okadoc accounts.</p>"));
+        res.status(403).send(page("Access denied", "<h1>Access denied</h1><p>This Portico instance is restricted to Okadoc accounts.</p>"));
         return;
       }
       console.error("login callback error", err);

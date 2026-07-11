@@ -14,15 +14,15 @@ describe("InMemoryTokenStore", () => {
     userId = u.id;
   });
 
-  it("mints an omni-prefixed token that resolves to the user", async () => {
+  it("mints an portico-prefixed token that resolves to the user", async () => {
     const { token } = await tokens.mint(userId, "login");
-    expect(token.startsWith("omni_")).toBe(true);
+    expect(token.startsWith("portico_")).toBe(true);
     const resolved = await tokens.resolve(token);
     expect(resolved?.id).toBe(userId);
   });
 
   it("returns null for an unknown token", async () => {
-    expect(await tokens.resolve("omni_nope")).toBeNull();
+    expect(await tokens.resolve("portico_nope")).toBeNull();
   });
 
   it("stops resolving a revoked token", async () => {

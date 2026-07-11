@@ -7,7 +7,7 @@ import { Registry, type UpstreamEntry } from "../../domain/upstream.js";
  * registry but `Registry.isConfigured` returns false and linking is refused.
  *
  * Env keys per upstream id `X` (dashes → underscores, upper-cased):
- *   OMNI_UPSTREAM_X_MCP_URL, OMNI_UPSTREAM_X_CLIENT_ID, OMNI_UPSTREAM_X_CLIENT_SECRET
+ *   PORTICO_UPSTREAM_X_MCP_URL, PORTICO_UPSTREAM_X_CLIENT_ID, PORTICO_UPSTREAM_X_CLIENT_SECRET
  */
 
 interface Seed {
@@ -54,7 +54,7 @@ const SEEDS: Seed[] = [
 ];
 
 const envKey = (id: string, suffix: string): string =>
-  `OMNI_UPSTREAM_${id.replace(/-/g, "_").toUpperCase()}_${suffix}`;
+  `PORTICO_UPSTREAM_${id.replace(/-/g, "_").toUpperCase()}_${suffix}`;
 
 export function buildRegistry(env: Record<string, string | undefined>): Registry {
   const entries = new Map<string, UpstreamEntry>();

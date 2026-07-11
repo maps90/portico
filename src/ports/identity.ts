@@ -1,6 +1,6 @@
 /** Identity ports: users, bearer tokens, and OIDC verification. */
 
-/** A logged-in omni identity, keyed by OIDC (issuer, subject). */
+/** A logged-in Portico identity, keyed by OIDC (issuer, subject). */
 export interface User {
   id: string;
   issuer: string;
