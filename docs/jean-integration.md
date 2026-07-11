@@ -1,0 +1,101 @@
+# Connecting Jean to omni-mcp
+
+[Jean](../../jean) is a Slack-native Claude Code runtime built on
+`claude-agent-sdk`. It already speaks through one in-process MCP server
+(`jean_slack`). omni-mcp is attached as an **additional, remote** MCP server, so
+Jean gains every tool the user has linked (Jira, Google Drive, GitHub, …) plus
+the artifact host — all behind one bearer token.
+
+## The model
+
+- A user signs in once at `https://<omni-domain>/login` (Okadoc Entra) and gets
+  **one bearer token**.
+- Jean attaches omni-mcp as an HTTP MCP server, sending that token as
+  `Authorization: Bearer <token>`.
+- omni-mcp resolves the token → user, and exposes that user's namespaced upstream
+  tools (`mcp__omni__atlassian__…`, `mcp__omni__gdrive__…`) plus the management
+  and artifact tools (`mcp__omni__omni__*`).
+
+## Wiring it into Jean
+
+Jean builds its agent options in `src/jean/server.py::options_factory`. Add
+omni-mcp to `mcp_servers` and allow its tools:
+
+```python
+def options_factory(resume: str | None) -> ClaudeAgentOptions:
+    mcp_servers = {"jean_slack": server_mcp}
+    allowed = list(tool_names)
+
+    omni_token = current_omni_token()  # see "Per-user tokens" below
+    if omni_token:
+        mcp_servers["omni"] = {
+            "type": "http",
+            "url": "https://<omni-domain>/mcp",
+            "headers": {"Authorization": f"Bearer {omni_token}"},
+        }
+        allowed.append("mcp__omni__*")  # or list specific tools
+
+    return ClaudeAgentOptions(
+        system_prompt=compose_system_prompt(persona_text),
+        mcp_servers=mcp_servers,
+        allowed_tools=allowed,
+        permission_mode=settings.permission_mode,
+        can_use_tool=_allow_all_tools,
+        resume=resume,
+        model=settings.model,
+        cwd=str(settings.home / "workspaces"),
+    )
+```
+
+External MCP tools are exposed to the model as
+`mcp__<server>__<tool>`. Because omni already namespaces upstream tools, an
+Atlassian tool becomes `mcp__omni__atlassian__create_issue`, and the management
+tools become `mcp__omni__omni__list_connections` etc. (Name the server something
+other than `omni` if the doubled prefix bothers you.)
+
+## Per-user tokens (recommended)
+
+omni issues **one token per OIDC user**, so each Slack user should use their own.
+`options_factory` currently receives only `resume`; thread the requesting user's
+omni token through the same way Jean threads `routing` (channel/thread):
+
+1. Add an `omni_tokens` table/port in Jean mapping Slack `user_id` → omni bearer.
+2. When a user first needs it, Jean DMs them the `…/login` link; they paste the
+   returned token back to Jean, which stores it.
+3. Have `options_factory` read the current turn's Slack user (via a routing-style
+   context) and inject that user's token.
+
+### Shared-token quickstart
+
+For an initial rollout you can use **one** omni token (a shared team account's)
+for all Jean users — everyone then shares that account's connected services. Put
+it in Jean's config/env and return it from `current_omni_token()`. Migrate to
+per-user tokens when you need per-person authorization.
+
+## Connecting a service (the UX)
+
+1. User asks Jean to do something needing, say, Jira.
+2. If not linked, the proxied call returns an actionable message, or Jean calls
+   `omni__connect` with `{"service": "atlassian"}` and gets back a URL.
+3. Jean posts the URL into the Slack thread; the user opens it, authorizes with
+   the vendor, and returns.
+4. The tools are available immediately on the next turn — no Jean restart. Token
+   refresh is handled server-side by omni.
+
+## Publishing rich HTML back to Slack
+
+Slack can't render rich HTML inline. When Jean produces a report/dashboard:
+
+1. Jean calls `omni__publish_html` with the HTML (optionally `title`,
+   `visibility`, `expiresInSeconds`).
+2. omni stores it and returns a **login-gated** URL.
+3. Jean posts the URL into the thread. Teammates open it in a browser; they must
+   be signed in to omni (Okadoc) to view — links are not world-readable.
+
+## Notes
+
+- omni-mcp is stateless per request; Jean can reconnect freely.
+- A `401` from `/mcp` means the token is missing/invalid/revoked — prompt the user
+  to sign in again at `…/login`.
+- omni holds all upstream OAuth tokens encrypted server-side; Jean never sees
+  vendor credentials.

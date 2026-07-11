@@ -12,7 +12,9 @@ A unified **MCP gateway** + **HTML artifact host** for Okadoc.
   login-gated URL. Bytes live in Azure Blob Storage; only authenticated omni
   users can view.
 
-See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the design and
+See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the design,
+[`docs/jean-integration.md`](docs/jean-integration.md) for wiring it into Jean,
+[`deploy/DEPLOY.md`](deploy/DEPLOY.md) for Azure deployment, and
 [`docs/superpowers/specs/2026-07-11-omni-mcp-design.md`](docs/superpowers/specs/2026-07-11-omni-mcp-design.md)
 for the full spec + implementation milestones.
 
@@ -31,6 +33,16 @@ and an Entra app registration. Domain and application tests run with no infra.
 
 ## Status
 
-Under construction — see the milestone tasks. **M1 (scaffold + config + ports +
-health)** is done; identity, MCP endpoint, upstream proxy, and artifact host
-follow.
+Feature-complete MVP. All eight milestones are implemented and tested:
+
+1. Scaffold, config, ports, hexagonal layout
+2. Entra OIDC identity, bearer tokens, sessions
+3. `/mcp` Streamable HTTP endpoint + omni management tools
+4. Upstream OAuth linking (auth-code + PKCE) + encrypted vault
+5. Proxy engine — aggregate + route upstream MCP tools
+6. HTML artifact host (Azure Blob + login-gated viewer)
+7. Azure deployment (Dockerfile, Container Apps bicep, runbook)
+8. Jean integration guide
+
+The full suite runs with no external infra (in-memory adapters); Postgres/Azure
+back the same behaviour in production.
