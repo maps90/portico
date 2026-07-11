@@ -10,7 +10,6 @@
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "noFallthroughCasesInSwitch": true,
-    "exactOptionalPropertyTypes": true,
     "verbatimModuleSyntax": true,
     "declaration": true,
     "sourceMap": true,

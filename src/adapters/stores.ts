@@ -1,27 +1,37 @@
 import type { Pool } from "pg";
 import type { TokenStore, UserStore } from "../ports/identity.js";
+import type { ConnectionVault } from "../ports/connections.js";
 import { InMemoryUserStore } from "./memory/user-store.js";
 import { InMemoryTokenStore } from "./memory/token-store.js";
+import { InMemoryConnectionVault } from "./memory/connection-vault.js";
 import { PostgresUserStore } from "./db/postgres-user-store.js";
 import { PostgresTokenStore } from "./db/postgres-token-store.js";
+import { PostgresConnectionVault } from "./db/postgres-connection-vault.js";
+import { AesGcmCrypto } from "./crypto/aesgcm.js";
 
 /**
- * Bundle of persistence adapters. Grows per milestone (connections, artifacts).
- * `buildStores` picks Postgres when a pool is provided, else in-memory — so the
- * two are proven against the same application/behaviour tests, mirroring jean.
+ * Bundle of persistence adapters. `buildStores` picks Postgres when a pool is
+ * provided, else in-memory — so the two are proven against the same
+ * application/behaviour tests, mirroring jean.
  */
 export interface Stores {
   users: UserStore;
   tokens: TokenStore;
+  vault: ConnectionVault;
 }
 
-export function buildStores(pool: Pool | null): Stores {
+export function buildStores(pool: Pool | null, opts: { encryptionKey: Buffer }): Stores {
   if (pool) {
     return {
       users: new PostgresUserStore(pool),
       tokens: new PostgresTokenStore(pool),
+      vault: new PostgresConnectionVault(pool, new AesGcmCrypto(opts.encryptionKey)),
     };
   }
   const users = new InMemoryUserStore();
-  return { users, tokens: new InMemoryTokenStore(users) };
+  return {
+    users,
+    tokens: new InMemoryTokenStore(users),
+    vault: new InMemoryConnectionVault(),
+  };
 }
