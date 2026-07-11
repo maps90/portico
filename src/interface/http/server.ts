@@ -3,14 +3,18 @@ import type { Pool } from "pg";
 import type { Settings } from "../../config.js";
 import type { OidcVerifier } from "../../ports/identity.js";
 import type { UpstreamOAuthClient } from "../../ports/oauth.js";
+import type { UpstreamGateway } from "../../ports/upstream.js";
 import { EntraOidcVerifier } from "../../adapters/oidc/entra.js";
 import { buildStores, type Stores } from "../../adapters/stores.js";
 import { buildRegistry } from "../../adapters/registry/default-registry.js";
 import { SessionCodec } from "../../adapters/session/cookie.js";
 import { FetchUpstreamOAuthClient } from "../../adapters/upstream/oauth-client.js";
+import { McpUpstreamGateway } from "../../adapters/upstream/mcp-gateway.js";
 import { IdentityService } from "../../application/identity-service.js";
 import { ConnectionsService } from "../../application/connections-service.js";
 import { LinkingService } from "../../application/linking-service.js";
+import { AccessTokenProvider } from "../../application/access.js";
+import { ProxyService } from "../../application/proxy-service.js";
 import { registerHealth } from "./health.js";
 import { registerIdentityRoutes } from "./identity-routes.js";
 import { registerConnectRoutes } from "./connect-routes.js";
@@ -24,6 +28,7 @@ export interface Dependencies {
   overrides?: {
     oauthClient?: UpstreamOAuthClient;
     oidc?: OidcVerifier;
+    gateway?: UpstreamGateway;
   };
 }
 
@@ -34,6 +39,7 @@ export interface BuiltApp {
   identity: IdentityService;
   connections: ConnectionsService;
   linking: LinkingService;
+  proxy: ProxyService;
   sessions: SessionCodec;
 }
 
@@ -59,6 +65,7 @@ export function buildApp(deps: Dependencies): BuiltApp {
       clientSecret: settings.entra.clientSecret,
     });
   const oauthClient = deps.overrides?.oauthClient ?? new FetchUpstreamOAuthClient();
+  const gateway = deps.overrides?.gateway ?? new McpUpstreamGateway();
   const stores = buildStores(pool, { encryptionKey: settings.encryptionKey });
   const sessions = new SessionCodec(settings.sessionSecret);
   const registry = buildRegistry(process.env);
@@ -82,14 +89,22 @@ export function buildApp(deps: Dependencies): BuiltApp {
     oauthClient,
     baseUrl: settings.baseUrl,
   });
+  const access = new AccessTokenProvider({ vault: stores.vault, oauthClient, registry });
+  const proxy = new ProxyService({
+    registry,
+    vault: stores.vault,
+    access,
+    gateway,
+    baseUrl: settings.baseUrl,
+  });
 
   // --- interface ---
   registerHealth(app, pool);
   registerIdentityRoutes(app, { identity, sessions, settings });
   registerConnectRoutes(app, { linking, sessions, users: stores.users, settings });
-  registerMcpRoute(app, { tokens: stores.tokens, connections, baseUrl: settings.baseUrl });
+  registerMcpRoute(app, { tokens: stores.tokens, connections, proxy, baseUrl: settings.baseUrl });
 
-  return { app, stores, identity, connections, linking, sessions };
+  return { app, stores, identity, connections, linking, proxy, sessions };
 }
 
 /** Convenience for the process entry point, which only needs the Express app. */

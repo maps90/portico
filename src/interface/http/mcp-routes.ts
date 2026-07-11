@@ -45,7 +45,7 @@ export function registerMcpRoute(app: Express, deps: McpRouteDeps): void {
       return;
     }
 
-    const server = buildOmniServer(user, deps);
+    const server = await buildOmniServer(user, deps);
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableJsonResponse: true,

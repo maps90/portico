@@ -5,6 +5,8 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { loadConfig } from "../../config.js";
 import { buildApp, type BuiltApp } from "./server.js";
+import type { UpstreamGateway } from "../../ports/upstream.js";
+import type { Tool, CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
 const env: Record<string, string> = {
   OMNI_BASE_URL: "http://localhost",
@@ -14,7 +16,20 @@ const env: Record<string, string> = {
   OMNI_ENTRA_CLIENT_ID: "cid",
   OMNI_ENTRA_CLIENT_SECRET: "sec",
   OMNI_ARTIFACT_BLOB_ACCOUNT: "acct",
+  OMNI_UPSTREAM_ATLASSIAN_CLIENT_ID: "atl-cid",
+  OMNI_UPSTREAM_ATLASSIAN_CLIENT_SECRET: "atl-sec",
+  OMNI_UPSTREAM_ATLASSIAN_MCP_URL: "https://mcp.atlassian.example/",
 };
+
+/** Fake upstream MCP: atlassian exposes one tool and echoes calls. */
+class FakeGateway implements UpstreamGateway {
+  async listTools(): Promise<Tool[]> {
+    return [{ name: "create_issue", description: "Create a Jira issue", inputSchema: { type: "object" } }];
+  }
+  async callTool(_url: string, _t: string, name: string, args: Record<string, unknown>): Promise<CallToolResult> {
+    return { content: [{ type: "text", text: `atlassian ran ${name} with ${JSON.stringify(args)}` }] };
+  }
+}
 
 describe("/mcp endpoint (integration, in-memory)", () => {
   let built: BuiltApp;
@@ -23,13 +38,24 @@ describe("/mcp endpoint (integration, in-memory)", () => {
   let token: string;
 
   beforeAll(async () => {
-    built = buildApp({ settings: loadConfig(env), pool: null });
+    Object.assign(process.env, env);
+    built = buildApp({ settings: loadConfig(process.env), pool: null, overrides: { gateway: new FakeGateway() } });
     const user = await built.stores.users.upsertByIdentity({
       issuer: "https://login.microsoftonline.com/okadoc/v2.0",
       subject: "sub-1",
       email: "u@okadoc.com",
     });
     token = (await built.stores.tokens.mint(user.id, "test")).token;
+    // Pre-link the atlassian upstream for this user.
+    await built.stores.vault.put({
+      userId: user.id,
+      upstreamId: "atlassian",
+      accessToken: "UP_AT",
+      refreshToken: null,
+      expiresAt: null,
+      scopes: [],
+      status: "active",
+    });
 
     server = await new Promise<Server>((resolve) => {
       const s = built.app.listen(0, () => resolve(s));
@@ -38,6 +64,7 @@ describe("/mcp endpoint (integration, in-memory)", () => {
   });
 
   afterAll(async () => {
+    for (const k of Object.keys(env)) delete process.env[k];
     await new Promise<void>((resolve) => server.close(() => resolve()));
   });
 
@@ -58,7 +85,7 @@ describe("/mcp endpoint (integration, in-memory)", () => {
     await expect(connect("omni_not-a-real-token")).rejects.toThrow();
   });
 
-  it("lists the omni management tools for an authenticated user", async () => {
+  it("lists omni tools plus the namespaced proxied upstream tool", async () => {
     const client = await connect(token);
     try {
       const { tools } = await client.listTools();
@@ -66,6 +93,23 @@ describe("/mcp endpoint (integration, in-memory)", () => {
       expect(names).toContain("omni__list_connections");
       expect(names).toContain("omni__connect");
       expect(names).toContain("omni__disconnect");
+      // proxied from the linked atlassian upstream, namespaced
+      expect(names).toContain("atlassian__create_issue");
+    } finally {
+      await client.close();
+    }
+  });
+
+  it("routes a proxied tool call to the upstream and returns its result", async () => {
+    const client = await connect(token);
+    try {
+      const res = await client.callTool({
+        name: "atlassian__create_issue",
+        arguments: { summary: "Bug" },
+      });
+      const content = res.content as Array<{ type: string; text: string }>;
+      expect(content[0]!.text).toContain("atlassian ran create_issue");
+      expect(content[0]!.text).toContain("Bug");
     } finally {
       await client.close();
     }
