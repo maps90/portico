@@ -6,6 +6,9 @@ export interface UpstreamOAuth {
   scopes: string[];
   clientId: string;
   clientSecret: string;
+  /** Extra static query params on the authorize URL (provider quirks, e.g.
+   *  Google's `access_type=offline`, Atlassian's `audience`). */
+  authorizeParams?: Record<string, string>;
 }
 
 export interface UpstreamEntry {

@@ -18,6 +18,7 @@ interface Seed {
   authorizationUrl: string;
   tokenUrl: string;
   scopes: string[];
+  authorizeParams?: Record<string, string>;
 }
 
 const SEEDS: Seed[] = [
@@ -29,6 +30,7 @@ const SEEDS: Seed[] = [
     authorizationUrl: "https://auth.atlassian.com/authorize",
     tokenUrl: "https://auth.atlassian.com/oauth/token",
     scopes: ["read:jira-work", "write:jira-work", "read:confluence-content.all", "offline_access"],
+    authorizeParams: { audience: "api.atlassian.com", prompt: "consent" },
   },
   {
     id: "google-drive",
@@ -38,6 +40,7 @@ const SEEDS: Seed[] = [
     authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth",
     tokenUrl: "https://oauth2.googleapis.com/token",
     scopes: ["https://www.googleapis.com/auth/drive.readonly", "openid", "email"],
+    authorizeParams: { access_type: "offline", prompt: "consent" },
   },
   {
     id: "github",
@@ -67,6 +70,7 @@ export function buildRegistry(env: Record<string, string | undefined>): Registry
         scopes: s.scopes,
         clientId: env[envKey(s.id, "CLIENT_ID")] ?? "",
         clientSecret: env[envKey(s.id, "CLIENT_SECRET")] ?? "",
+        ...(s.authorizeParams ? { authorizeParams: s.authorizeParams } : {}),
       },
     });
   }
