@@ -25,7 +25,9 @@ const base64Key = (bytes: number) =>
 const schema = z.object({
   OMNI_BASE_URL: z.string().url(),
   OMNI_PORT: z.coerce.number().int().positive().default(8080),
-  OMNI_DATABASE_URL: z.string().min(1),
+  // Optional: when unset, omni-mcp runs with in-memory stores (single-process
+  // dev / tests). Provide a URL to use Azure Database for PostgreSQL.
+  OMNI_DATABASE_URL: z.string().min(1).optional(),
   OMNI_ENCRYPTION_KEY: base64Key(32),
   OMNI_SESSION_SECRET: z.string().min(16),
 
@@ -41,7 +43,8 @@ const schema = z.object({
 export interface Settings {
   baseUrl: string;
   port: number;
-  databaseUrl: string;
+  /** When undefined, in-memory stores are used (single-process dev / tests). */
+  databaseUrl?: string;
   /** 32-byte key for AES-256-GCM upstream-token encryption. */
   encryptionKey: Buffer;
   sessionSecret: string;
@@ -69,7 +72,7 @@ export function loadConfig(env: Record<string, string | undefined>): Settings {
   return {
     baseUrl: e.OMNI_BASE_URL.replace(/\/$/, ""),
     port: e.OMNI_PORT,
-    databaseUrl: e.OMNI_DATABASE_URL,
+    ...(e.OMNI_DATABASE_URL ? { databaseUrl: e.OMNI_DATABASE_URL } : {}),
     encryptionKey: Buffer.from(e.OMNI_ENCRYPTION_KEY, "base64"),
     sessionSecret: e.OMNI_SESSION_SECRET,
     entra: {

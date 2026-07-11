@@ -1,6 +1,7 @@
 import pg from "pg";
 import { loadConfig } from "./config.js";
 import { createApp } from "./interface/http/server.js";
+import { ensureSchema } from "./adapters/db/schema.js";
 
 /**
  * Process entry point. Loads config, opens the Postgres pool, and starts the
@@ -8,7 +9,15 @@ import { createApp } from "./interface/http/server.js";
  */
 async function main(): Promise<void> {
   const settings = loadConfig(process.env);
-  const pool = new pg.Pool({ connectionString: settings.databaseUrl });
+
+  let pool: pg.Pool | null = null;
+  if (settings.databaseUrl) {
+    pool = new pg.Pool({ connectionString: settings.databaseUrl });
+    await ensureSchema(pool);
+    console.log("omni-mcp using Postgres store");
+  } else {
+    console.warn("omni-mcp OMNI_DATABASE_URL unset — using in-memory stores (non-persistent)");
+  }
 
   const app = createApp({ settings, pool });
 
@@ -19,7 +28,7 @@ async function main(): Promise<void> {
   const shutdown = (signal: string) => {
     console.log(`received ${signal}, shutting down`);
     server.close(() => {
-      void pool.end().then(() => process.exit(0));
+      void (pool ? pool.end() : Promise.resolve()).then(() => process.exit(0));
     });
   };
   process.on("SIGTERM", () => shutdown("SIGTERM"));
