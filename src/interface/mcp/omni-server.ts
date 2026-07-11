@@ -8,10 +8,12 @@ import {
 import type { User } from "../../ports/identity.js";
 import type { ConnectionsService } from "../../application/connections-service.js";
 import type { ProxyService } from "../../application/proxy-service.js";
+import type { ArtifactsService } from "../../application/artifacts-service.js";
 
 export interface OmniServerDeps {
   connections: ConnectionsService;
   proxy: ProxyService;
+  artifacts: ArtifactsService;
 }
 
 const text = (value: unknown): CallToolResult => ({
@@ -69,6 +71,77 @@ function omniTools(deps: OmniServerDeps): OmniTool[] {
         const service = String(args.service ?? "");
         const ok = await deps.connections.disconnect(user, service);
         return text(ok ? `Disconnected '${service}'.` : `Unknown service '${service}'.`);
+      },
+    },
+    {
+      def: {
+        name: "omni__publish_html",
+        description:
+          "Publish an HTML document (report/dashboard) and get back a login-gated URL to share (e.g. post into a Slack thread). Only authenticated omni users can open it.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            html: { type: "string", description: "the full HTML document to host" },
+            title: { type: "string", description: "optional title" },
+            visibility: {
+              type: "string",
+              enum: ["authenticated", "private"],
+              description: "'authenticated' (any signed-in omni user, default) or 'private' (only you)",
+            },
+            expiresInSeconds: { type: "number", description: "optional lifetime; omit for no expiry" },
+          },
+          required: ["html"],
+        },
+      },
+      handle: async (user, args) => {
+        const html = typeof args.html === "string" ? args.html : "";
+        if (!html.trim()) return text("Refusing to publish: 'html' is required and must be non-empty.");
+        const { url } = await deps.artifacts.publish(user, {
+          html,
+          ...(typeof args.title === "string" ? { title: args.title } : {}),
+          ...(args.visibility === "private" || args.visibility === "authenticated"
+            ? { visibility: args.visibility }
+            : {}),
+          ...(typeof args.expiresInSeconds === "number" ? { expiresInSeconds: args.expiresInSeconds } : {}),
+        });
+        return text(`Published. Share this login-gated URL:\n${url}`);
+      },
+    },
+    {
+      def: {
+        name: "omni__list_artifacts",
+        description: "List HTML artifacts you have published, with their URLs and status.",
+        inputSchema: { type: "object", properties: {} },
+      },
+      handle: async (user) => {
+        const metas = await deps.artifacts.list(user);
+        const now = Date.now();
+        return text(
+          metas.map((m) => ({
+            id: m.id,
+            title: m.title,
+            url: deps.artifacts.url(m.id),
+            visibility: m.visibility,
+            createdAt: m.createdAt,
+            revoked: m.revokedAt !== null,
+            expired: m.expiresAt !== null && m.expiresAt.getTime() <= now,
+          })),
+        );
+      },
+    },
+    {
+      def: {
+        name: "omni__revoke_artifact",
+        description: "Revoke a published artifact by id so its URL stops working.",
+        inputSchema: {
+          type: "object",
+          properties: { id: { type: "string", description: "artifact id" } },
+          required: ["id"],
+        },
+      },
+      handle: async (user, args) => {
+        const ok = await deps.artifacts.revoke(user, String(args.id ?? ""));
+        return text(ok ? "Artifact revoked." : "Unknown artifact id (or not yours).");
       },
     },
   ];

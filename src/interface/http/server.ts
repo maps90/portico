@@ -15,9 +15,11 @@ import { ConnectionsService } from "../../application/connections-service.js";
 import { LinkingService } from "../../application/linking-service.js";
 import { AccessTokenProvider } from "../../application/access.js";
 import { ProxyService } from "../../application/proxy-service.js";
+import { ArtifactsService } from "../../application/artifacts-service.js";
 import { registerHealth } from "./health.js";
 import { registerIdentityRoutes } from "./identity-routes.js";
 import { registerConnectRoutes } from "./connect-routes.js";
+import { registerArtifactRoutes } from "./artifact-routes.js";
 import { registerMcpRoute } from "./mcp-routes.js";
 
 export interface Dependencies {
@@ -40,6 +42,7 @@ export interface BuiltApp {
   connections: ConnectionsService;
   linking: LinkingService;
   proxy: ProxyService;
+  artifacts: ArtifactsService;
   sessions: SessionCodec;
 }
 
@@ -66,7 +69,10 @@ export function buildApp(deps: Dependencies): BuiltApp {
     });
   const oauthClient = deps.overrides?.oauthClient ?? new FetchUpstreamOAuthClient();
   const gateway = deps.overrides?.gateway ?? new McpUpstreamGateway();
-  const stores = buildStores(pool, { encryptionKey: settings.encryptionKey });
+  const stores = buildStores(pool, {
+    encryptionKey: settings.encryptionKey,
+    artifact: settings.artifact,
+  });
   const sessions = new SessionCodec(settings.sessionSecret);
   const registry = buildRegistry(process.env);
 
@@ -97,14 +103,26 @@ export function buildApp(deps: Dependencies): BuiltApp {
     gateway,
     baseUrl: settings.baseUrl,
   });
+  const artifacts = new ArtifactsService({
+    store: stores.artifactStore,
+    meta: stores.artifactMeta,
+    baseUrl: settings.baseUrl,
+  });
 
   // --- interface ---
   registerHealth(app, pool);
   registerIdentityRoutes(app, { identity, sessions, settings });
   registerConnectRoutes(app, { linking, sessions, users: stores.users, settings });
-  registerMcpRoute(app, { tokens: stores.tokens, connections, proxy, baseUrl: settings.baseUrl });
+  registerArtifactRoutes(app, { artifacts, sessions, users: stores.users });
+  registerMcpRoute(app, {
+    tokens: stores.tokens,
+    connections,
+    proxy,
+    artifacts,
+    baseUrl: settings.baseUrl,
+  });
 
-  return { app, stores, identity, connections, linking, proxy, sessions };
+  return { app, stores, identity, connections, linking, proxy, artifacts, sessions };
 }
 
 /** Convenience for the process entry point, which only needs the Express app. */
