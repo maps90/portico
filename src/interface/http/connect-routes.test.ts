@@ -77,8 +77,9 @@ describe("/connect flow (integration, in-memory)", () => {
     const state = authorizeUrl.searchParams.get("state")!;
     expect(authorizeUrl.searchParams.get("redirect_uri")).toContain("/connect/atlassian/callback");
 
-    // callback: exchange + store
+    // callback: exchange + store (session cookie required)
     const cb = await fetch(`${origin}/connect/atlassian/callback?state=${state}&code=the-code`, {
+      headers: { cookie },
       redirect: "manual",
     });
     expect(cb.status).toBe(200);
@@ -92,8 +93,17 @@ describe("/connect flow (integration, in-memory)", () => {
   it("rejects a replayed state on the callback", async () => {
     const begin = await fetch(`${origin}/connect/atlassian`, { headers: { cookie }, redirect: "manual" });
     const state = new URL(begin.headers.get("location")!).searchParams.get("state")!;
-    await fetch(`${origin}/connect/atlassian/callback?state=${state}&code=c`, { redirect: "manual" });
-    const replay = await fetch(`${origin}/connect/atlassian/callback?state=${state}&code=c`, { redirect: "manual" });
+    await fetch(`${origin}/connect/atlassian/callback?state=${state}&code=c`, { headers: { cookie }, redirect: "manual" });
+    const replay = await fetch(`${origin}/connect/atlassian/callback?state=${state}&code=c`, { headers: { cookie }, redirect: "manual" });
     expect(replay.status).toBe(400);
+  });
+
+  it("redirects the callback to /login when no session is present (CSRF defense)", async () => {
+    const begin = await fetch(`${origin}/connect/atlassian`, { headers: { cookie }, redirect: "manual" });
+    const state = new URL(begin.headers.get("location")!).searchParams.get("state")!;
+    // No cookie → must not link silently to the state's stored user.
+    const cb = await fetch(`${origin}/connect/atlassian/callback?state=${state}&code=c`, { redirect: "manual" });
+    expect(cb.status).toBe(302);
+    expect(cb.headers.get("location")).toBe("/login");
   });
 });

@@ -60,8 +60,15 @@ export function registerConnectRoutes(app: Express, deps: ConnectRouteDeps): voi
       res.status(400).send(page("Connection failed", "<h1>Connection failed</h1><p>Missing code or state.</p>"));
       return;
     }
+    // Bind the callback to the browser session and require it to match the user
+    // who began the flow (OAuth account-linking CSRF defense).
+    const user = await currentUser(req, sessions, users);
+    if (!user) {
+      res.redirect("/login");
+      return;
+    }
     try {
-      const { upstreamId } = await linking.complete(state, code);
+      const { upstreamId } = await linking.complete(state, code, user.id);
       res.status(200).send(
         page(
           "Service connected",

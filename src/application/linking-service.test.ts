@@ -82,7 +82,7 @@ describe("LinkingService", () => {
     const { authorizeUrl } = await svc.begin(user, "atlassian");
     const state = new URL(authorizeUrl).searchParams.get("state")!;
 
-    const { upstreamId, userId } = await svc.complete(state, "auth-code");
+    const { upstreamId, userId } = await svc.complete(state, "auth-code", user.id);
     expect(upstreamId).toBe("atlassian");
     expect(userId).toBe(user.id);
 
@@ -95,7 +95,17 @@ describe("LinkingService", () => {
   it("complete: rejects an unknown/replayed state (single-use)", async () => {
     const { authorizeUrl } = await svc.begin(user, "atlassian");
     const state = new URL(authorizeUrl).searchParams.get("state")!;
-    await svc.complete(state, "auth-code");
-    await expect(svc.complete(state, "auth-code")).rejects.toBeInstanceOf(InvalidOAuthStateError);
+    await svc.complete(state, "auth-code", user.id);
+    await expect(svc.complete(state, "auth-code", user.id)).rejects.toBeInstanceOf(InvalidOAuthStateError);
+  });
+
+  it("complete: rejects when the callback session is a different user (CSRF)", async () => {
+    const { authorizeUrl } = await svc.begin(user, "atlassian");
+    const state = new URL(authorizeUrl).searchParams.get("state")!;
+    await expect(svc.complete(state, "auth-code", "someone-else")).rejects.toBeInstanceOf(
+      InvalidOAuthStateError,
+    );
+    // state was consumed; the legitimate user can no longer replay it either
+    expect(await vault.get(user.id, "atlassian")).toBeNull();
   });
 });

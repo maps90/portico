@@ -66,10 +66,22 @@ export class LinkingService {
     };
   }
 
-  /** Consumes the state, exchanges the code, and stores the connection. */
-  async complete(state: string, code: string): Promise<{ upstreamId: string; userId: string }> {
+  /**
+   * Consumes the state, exchanges the code, and stores the connection.
+   *
+   * `currentUserId` is the browser session's user at callback time. It MUST match
+   * the user who began the flow — this binds the linking to the session and
+   * prevents OAuth account-linking CSRF (a leaked/replayed state+code cannot link
+   * an upstream account into a different user's omni account).
+   */
+  async complete(
+    state: string,
+    code: string,
+    currentUserId: string,
+  ): Promise<{ upstreamId: string; userId: string }> {
     const rec = await this.deps.oauthState.take(state);
     if (!rec) throw new InvalidOAuthStateError();
+    if (rec.userId !== currentUserId) throw new InvalidOAuthStateError();
 
     const entry = this.deps.registry.get(rec.upstreamId);
     if (!entry) throw new ConnectionNotFoundError(rec.upstreamId);
