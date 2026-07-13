@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { IdentityService } from "./identity-service.js";
 import { InMemoryUserStore } from "../adapters/memory/user-store.js";
 import { InMemoryTokenStore } from "../adapters/memory/token-store.js";
-import { TenantForbiddenError } from "../domain/errors.js";
+import { DomainForbiddenError } from "../domain/errors.js";
 import type { OidcClaims, OidcVerifier } from "../ports/identity.js";
 
 class FakeOidc implements OidcVerifier {
@@ -16,20 +16,21 @@ class FakeOidc implements OidcVerifier {
 }
 
 const okClaims: OidcClaims = {
-  issuer: "https://login.microsoftonline.com/okadoc/v2.0",
+  issuer: "https://accounts.google.com",
   subject: "sub-1",
   email: "user@okadoc.com",
-  tenantId: "okadoc",
+  emailVerified: true,
+  workspace: "okadoc.com",
 };
 
-const build = (claims: OidcClaims) => {
+const build = (claims: OidcClaims, allowedDomains: string[] = ["okadoc.com"]) => {
   const users = new InMemoryUserStore();
   const tokens = new InMemoryTokenStore(users);
   const service = new IdentityService({
     oidc: new FakeOidc(claims),
     users,
     tokens,
-    allowedTenantId: "okadoc",
+    allowedDomains,
   });
   return { users, tokens, service };
 };
@@ -58,10 +59,26 @@ describe("IdentityService", () => {
     expect(a.user.id).toBe(b.user.id);
   });
 
-  it("rejects an identity outside the Okadoc tenant", async () => {
-    const other = build({ ...okClaims, tenantId: "evilcorp" });
+  it("rejects an identity outside the allowed domains", async () => {
+    const other = build({ ...okClaims, workspace: "evilcorp.com" });
     await expect(other.service.completeLogin("code", "https://portico/cb")).rejects.toBeInstanceOf(
-      TenantForbiddenError,
+      DomainForbiddenError,
     );
+  });
+
+  it("accepts any verified account when no domains are configured", async () => {
+    const open = build({ ...okClaims, workspace: "gmail.com" }, []);
+    const { user } = await open.service.completeLogin("code", "https://portico/cb");
+    expect(user.id).toBeTruthy();
+  });
+
+  it("regenerating a token invalidates every previous one", async () => {
+    const { user, token: first } = await ctx.service.completeLogin("code", "https://portico/cb");
+    const { token: second } = await ctx.service.regenerateToken(user);
+
+    expect(second).not.toBe(first);
+    expect(await ctx.tokens.resolve(first)).toBeNull();
+    expect((await ctx.tokens.resolve(second))?.id).toBe(user.id);
+    expect(await ctx.tokens.listActive(user.id)).toHaveLength(1);
   });
 });

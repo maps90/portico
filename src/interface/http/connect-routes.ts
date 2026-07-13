@@ -24,7 +24,7 @@ export interface ConnectRouteDeps {
  * redirects to the upstream's authorize URL and stores the connection on return.
  */
 export function registerConnectRoutes(app: Express, deps: ConnectRouteDeps): void {
-  const { linking, sessions, users } = deps;
+  const { linking, sessions, users, settings } = deps;
 
   app.get("/connect/:id", async (req: Request, res: Response) => {
     const id = (req.params as Record<string, string>).id ?? "";
@@ -73,7 +73,8 @@ export function registerConnectRoutes(app: Express, deps: ConnectRouteDeps): voi
         page(
           "Service connected",
           `<h1>Connected ✓</h1><p>'${escapeHtml(upstreamId)}' is now linked to your Portico account.
-           You can close this tab and return to Jean — its tools are available immediately.</p>`,
+           Its tools are available to Jean immediately — no new token needed.</p>
+           <p><a class="btn" href="${escapeHtml(settings.portalUrl)}">Back to the portal →</a></p>`,
         ),
       );
     } catch (err) {

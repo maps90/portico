@@ -11,9 +11,8 @@ const env: Record<string, string> = {
   PORTICO_BASE_URL: "http://localhost",
   PORTICO_ENCRYPTION_KEY: Buffer.alloc(32, 5).toString("base64"),
   PORTICO_SESSION_SECRET: "test-session-secret-value",
-  PORTICO_ENTRA_TENANT_ID: "okadoc",
-  PORTICO_ENTRA_CLIENT_ID: "cid",
-  PORTICO_ENTRA_CLIENT_SECRET: "sec",
+  PORTICO_GOOGLE_CLIENT_ID: "cid",
+  PORTICO_GOOGLE_CLIENT_SECRET: "sec",
   PORTICO_ARTIFACT_BLOB_ACCOUNT: "acct",
 };
 

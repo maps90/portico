@@ -36,11 +36,11 @@ param keyVaultUri string
 @description('Public base URL, e.g. https://portico.okadoc.com')
 param baseUrl string
 
-@description('Okadoc Entra tenant id')
-param entraTenantId string
+@description('Google OAuth client id (login)')
+param googleClientId string
 
-@description('Entra app (client) id')
-param entraClientId string
+@description('Comma-separated Workspace domains allowed to sign in, e.g. okadoc.com. Empty = any Google account.')
+param allowedDomains string = ''
 
 @description('Artifact storage account name')
 param artifactBlobAccount string
@@ -81,7 +81,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
         { name: 'database-url', keyVaultUrl: '${keyVaultUri}secrets/portico-database-url', identity: managedIdentityId }
         { name: 'encryption-key', keyVaultUrl: '${keyVaultUri}secrets/portico-encryption-key', identity: managedIdentityId }
         { name: 'session-secret', keyVaultUrl: '${keyVaultUri}secrets/portico-session-secret', identity: managedIdentityId }
-        { name: 'entra-client-secret', keyVaultUrl: '${keyVaultUri}secrets/portico-entra-client-secret', identity: managedIdentityId }
+        { name: 'google-client-secret', keyVaultUrl: '${keyVaultUri}secrets/portico-google-client-secret', identity: managedIdentityId }
         // Add one secret per configured upstream, e.g.:
         // { name: 'upstream-atlassian-client-secret', keyVaultUrl: '${keyVaultUri}secrets/portico-upstream-atlassian-client-secret', identity: managedIdentityId }
       ]
@@ -98,14 +98,14 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
           env: [
             { name: 'PORTICO_BASE_URL', value: baseUrl }
             { name: 'PORTICO_PORT', value: '8080' }
-            { name: 'PORTICO_ENTRA_TENANT_ID', value: entraTenantId }
-            { name: 'PORTICO_ENTRA_CLIENT_ID', value: entraClientId }
+            { name: 'PORTICO_GOOGLE_CLIENT_ID', value: googleClientId }
+            { name: 'PORTICO_ALLOWED_DOMAINS', value: allowedDomains }
             { name: 'PORTICO_ARTIFACT_BLOB_ACCOUNT', value: artifactBlobAccount }
             { name: 'PORTICO_ARTIFACT_CONTAINER', value: artifactContainer }
             { name: 'PORTICO_DATABASE_URL', secretRef: 'database-url' }
             { name: 'PORTICO_ENCRYPTION_KEY', secretRef: 'encryption-key' }
             { name: 'PORTICO_SESSION_SECRET', secretRef: 'session-secret' }
-            { name: 'PORTICO_ENTRA_CLIENT_SECRET', secretRef: 'entra-client-secret' }
+            { name: 'PORTICO_GOOGLE_CLIENT_SECRET', secretRef: 'google-client-secret' }
             // Upstream creds (ids are non-secret env, secrets via secretRef):
             // { name: 'PORTICO_UPSTREAM_ATLASSIAN_CLIENT_ID', value: '...' }
             // { name: 'PORTICO_UPSTREAM_ATLASSIAN_CLIENT_SECRET', secretRef: 'upstream-atlassian-client-secret' }

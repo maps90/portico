@@ -1,7 +1,7 @@
 # Deploying portico to Azure (Okadoc)
 
 portico ships as a single container. This guide targets **Azure Container Apps**
-with **Entra** identity, **Azure Database for PostgreSQL**, **Azure Blob Storage**
+with **Google** identity, **Azure Database for PostgreSQL**, **Azure Blob Storage**
 for artifacts, and **Key Vault** for secrets. (AKS works too — the container and
 env vars are identical; deploy it as a Deployment + Service + Ingress and mount
 the same secrets.)
@@ -18,13 +18,18 @@ the same secrets.)
 | Azure Database for PostgreSQL (Flexible Server) | create a database `portico`; note the connection string |
 | Storage account + **private** Blob container `portico-artifacts` | no public access |
 
-## 1. Entra app registration (identity)
+## 1. Google OAuth client (identity)
 
-1. Register an app in the **Okadoc** Entra tenant. Set it **single-tenant**
-   (accounts in this org only) — this is what restricts login to Okadoc.
-2. Add a **Web** redirect URI: `https://<your-domain>/auth/entra/callback`.
-3. Create a client secret → store it in Key Vault (step 3).
-4. Note the **Directory (tenant) ID** and **Application (client) ID**.
+1. In Google Cloud Console → **APIs & Services → Credentials**, create an
+   **OAuth client ID** of type **Web application**.
+2. Add the authorized redirect URI `https://<your-domain>/auth/google/callback`.
+3. Note the **client ID**; put the **client secret** in Key Vault (step 3).
+4. Set `allowedDomains` to your Workspace domain (e.g. `okadoc.com`) so only that
+   domain can sign in. Leaving it empty lets **any** Google account in — never do
+   that on a public URL.
+
+This client asks only for `openid email profile`. The Google Drive *upstream* is a
+separate OAuth client with its own scopes (step 2).
 
 ## 2. Upstream OAuth apps (per service you enable)
 
@@ -42,7 +47,7 @@ Generate and store (names must match `containerapp.bicep`):
 az keyvault secret set --vault-name portico-kv --name portico-database-url        --value "postgresql://USER:PASS@HOST:5432/portico?sslmode=require"
 az keyvault secret set --vault-name portico-kv --name portico-encryption-key      --value "$(openssl rand -base64 32)"
 az keyvault secret set --vault-name portico-kv --name portico-session-secret      --value "$(openssl rand -base64 32)"
-az keyvault secret set --vault-name portico-kv --name portico-entra-client-secret --value "<entra client secret>"
+az keyvault secret set --vault-name portico-kv --name portico-google-client-secret --value "<google client secret>"
 # per upstream, e.g.:
 az keyvault secret set --vault-name portico-kv --name portico-upstream-atlassian-client-secret --value "<...>"
 ```
@@ -69,8 +74,8 @@ az deployment group create \
      managedIdentityId=<user-assigned-mi-resource-id> \
      keyVaultUri=https://portico-kv.vault.azure.net/ \
      baseUrl=https://<your-domain> \
-     entraTenantId=<okadoc-tenant-id> \
-     entraClientId=<entra-client-id> \
+     googleClientId=<google-oauth-client-id> \
+     allowedDomains=okadoc.com \
      artifactBlobAccount=<storage-account-name>
 ```
 
@@ -85,13 +90,16 @@ curl https://<your-domain>/healthz     # {"status":"ok"}
 curl https://<your-domain>/readyz      # {"status":"ready","db":"ok"}
 ```
 
-Then open `https://<your-domain>/login` in a browser, sign in with an Okadoc
-account, copy the bearer token, and give it to Jean (see `docs/jean-integration.md`).
+Then open `https://<your-domain>/` in a browser. Sign in with Google, copy the
+bearer token shown once, link your services from the portal, and give the token to
+Jean (see `docs/jean-integration.md`).
 
 ## Notes
 
 - The DB schema is created idempotently at boot (`ensureSchema`); no migration
   step is required for the initial deploy.
+- The image serves the React portal at `/` from `web/dist`; `npm run build` (run in
+  the Dockerfile) produces it. There is no separate frontend deployment.
 - Artifact bytes are streamed through the app from the **private** Blob container;
   the container must never be given public or anonymous access.
 - Scale is stateless — increase `maxReplicas` freely; all state is in Postgres/Blob.

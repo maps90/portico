@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: portico-postgres
+    environment:
+      POSTGRES_USER: portico
+      POSTGRES_PASSWORD: portico
+      POSTGRES_DB: portico
+    ports:
+      # Matches PORTICO_DATABASE_URL in .env.example.
+      - "5432:5432"
+    volumes:
+      - portico-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U portico -d portico"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  portico-pgdata:

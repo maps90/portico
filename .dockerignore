@@ -1,5 +1,8 @@
 node_modules
 dist
+web/dist
+web/node_modules
+.data
 .git
 .env
 .env.local

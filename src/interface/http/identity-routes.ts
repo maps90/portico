@@ -3,7 +3,7 @@ import type { Express, Request, Response } from "express";
 import type { Settings } from "../../config.js";
 import type { IdentityService } from "../../application/identity-service.js";
 import type { SessionCodec } from "../../adapters/session/cookie.js";
-import { TenantForbiddenError } from "../../domain/errors.js";
+import { DomainForbiddenError } from "../../domain/errors.js";
 import { parseCookies, serializeCookie } from "./cookies.js";
 import { escapeHtml, page } from "./html.js";
 
@@ -16,11 +16,14 @@ export interface IdentityRouteDeps {
   settings: Settings;
 }
 
-/** `/login` + `/auth/entra/callback`: OIDC login → session cookie + bearer token. */
+/**
+ * `/login`, `/auth/google/callback`, `/logout`: Google sign-in → session cookie
+ * (for the portal and the artifact viewer) + a bearer token (for Jean).
+ */
 export function registerIdentityRoutes(app: Express, deps: IdentityRouteDeps): void {
   const { identity, sessions, settings } = deps;
   const secure = settings.baseUrl.startsWith("https");
-  const redirectUri = `${settings.baseUrl}/auth/entra/callback`;
+  const redirectUri = `${settings.baseUrl}/auth/google/callback`;
 
   app.get("/login", (_req: Request, res: Response) => {
     const state = randomBytes(16).toString("base64url");
@@ -31,13 +34,20 @@ export function registerIdentityRoutes(app: Express, deps: IdentityRouteDeps): v
     res.redirect(identity.beginLogin(state, redirectUri));
   });
 
-  app.get("/auth/entra/callback", async (req: Request, res: Response) => {
+  app.get("/auth/google/callback", async (req: Request, res: Response) => {
     const code = typeof req.query.code === "string" ? req.query.code : null;
     const state = typeof req.query.state === "string" ? req.query.state : null;
     const cookieState = parseCookies(req.headers.cookie)[STATE_COOKIE];
 
     if (!code || !state || !cookieState || state !== cookieState) {
-      res.status(400).send(page("Login failed", "<h1>Login failed</h1><p>Invalid or expired login request. <a href=\"/login\">Try again</a>.</p>"));
+      res
+        .status(400)
+        .send(
+          page(
+            "Login failed",
+            '<h1>Login failed</h1><p>Invalid or expired login request. <a href="/login">Try again</a>.</p>',
+          ),
+        );
       return;
     }
 
@@ -55,22 +65,43 @@ export function registerIdentityRoutes(app: Express, deps: IdentityRouteDeps): v
       ]);
       res.status(200).send(
         page(
-          "Connected to Portico",
+          "Signed in to Portico",
           `<h1>You're signed in${user.email ? `, ${escapeHtml(user.email)}` : ""}</h1>
-           <p>Copy this token into Jean's configuration as your portico bearer token.
-           <strong>It is shown only once.</strong></p>
+           <p>This is your portico bearer token — the one token that reaches every
+           service you link. Copy it into Jean's configuration now:
+           <strong>it is shown only once.</strong></p>
            <pre>${escapeHtml(token)}</pre>
-           <p class="muted">Then link your services (Jira, Google Drive, …) from the
-           Portico tools inside Jean, or by visiting the connect links they return.</p>`,
+           <p class="muted">Lost it? Generate a new one from the portal — that
+           invalidates this one.</p>
+           <p><a class="btn" href="${escapeHtml(settings.portalUrl)}">Continue to the portal →</a></p>`,
         ),
       );
     } catch (err) {
-      if (err instanceof TenantForbiddenError) {
-        res.status(403).send(page("Access denied", "<h1>Access denied</h1><p>This Portico instance is restricted to Okadoc accounts.</p>"));
+      if (err instanceof DomainForbiddenError) {
+        res
+          .status(403)
+          .send(
+            page(
+              "Access denied",
+              `<h1>Access denied</h1><p>${escapeHtml(err.message)}</p>`,
+            ),
+          );
         return;
       }
       console.error("login callback error", err);
-      res.status(502).send(page("Login error", "<h1>Login error</h1><p>Could not complete sign-in. Please try again.</p>"));
+      res
+        .status(502)
+        .send(
+          page(
+            "Login error",
+            "<h1>Login error</h1><p>Could not complete sign-in. Please try again.</p>",
+          ),
+        );
     }
+  });
+
+  app.get("/logout", (_req: Request, res: Response) => {
+    res.setHeader("Set-Cookie", serializeCookie(SESSION_COOKIE, "", { secure, maxAgeSeconds: 0 }));
+    res.redirect("/");
   });
 }

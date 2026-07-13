@@ -1,5 +1,5 @@
 import type { Pool } from "pg";
-import type { TokenStore, User } from "../../ports/identity.js";
+import type { TokenStore, TokenSummary, User } from "../../ports/identity.js";
 import { generateBearerToken, hashToken } from "../crypto/tokens.js";
 import { PostgresUserStore } from "./postgres-user-store.js";
 
@@ -35,6 +35,34 @@ export class PostgresTokenStore implements TokenStore {
       `UPDATE tokens SET revoked_at = now()
        WHERE token_hash = $1 AND revoked_at IS NULL`,
       [hashToken(rawToken)],
+    );
+  }
+
+  async listActive(userId: string): Promise<TokenSummary[]> {
+    const { rows } = await this.pool.query<{
+      id: string;
+      name: string;
+      created_at: Date;
+      last_used_at: Date | null;
+    }>(
+      `SELECT id, name, created_at, last_used_at FROM tokens
+       WHERE user_id = $1 AND revoked_at IS NULL
+       ORDER BY created_at DESC`,
+      [userId],
+    );
+    return rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      createdAt: r.created_at,
+      lastUsedAt: r.last_used_at,
+    }));
+  }
+
+  async revokeAllForUser(userId: string): Promise<void> {
+    await this.pool.query(
+      `UPDATE tokens SET revoked_at = now()
+       WHERE user_id = $1 AND revoked_at IS NULL`,
+      [userId],
     );
   }
 }

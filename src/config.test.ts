@@ -8,10 +8,8 @@ const valid: Record<string, string> = {
   PORTICO_DATABASE_URL: "postgresql://portico:portico@localhost:5432/portico",
   PORTICO_ENCRYPTION_KEY: key,
   PORTICO_SESSION_SECRET: "a-sufficiently-long-secret",
-  PORTICO_ENTRA_TENANT_ID: "tenant",
-  PORTICO_ENTRA_CLIENT_ID: "client",
-  PORTICO_ENTRA_CLIENT_SECRET: "secret",
-  PORTICO_ARTIFACT_BLOB_ACCOUNT: "okadocblob",
+  PORTICO_GOOGLE_CLIENT_ID: "client",
+  PORTICO_GOOGLE_CLIENT_SECRET: "secret",
 };
 
 describe("loadConfig", () => {
@@ -20,9 +18,8 @@ describe("loadConfig", () => {
     expect(s.baseUrl).toBe("https://portico.okadoc.com");
     expect(s.port).toBe(8080);
     expect(s.encryptionKey).toHaveLength(32);
-    expect(s.entra.tenantId).toBe("tenant");
-    expect(s.artifact.container).toBe("portico-artifacts");
-    expect(s.artifact.connectionString).toBeUndefined();
+    expect(s.google.clientId).toBe("client");
+    expect(s.allowedDomains).toEqual([]);
   });
 
   it("rejects an encryption key that is not 32 bytes", () => {
@@ -32,17 +29,32 @@ describe("loadConfig", () => {
   });
 
   it("rejects a missing required field", () => {
-    const { PORTICO_ENTRA_TENANT_ID: _omit, ...rest } = valid;
-    expect(() => loadConfig(rest)).toThrow(/PORTICO_ENTRA_TENANT_ID/);
+    const { PORTICO_GOOGLE_CLIENT_ID: _omit, ...rest } = valid;
+    expect(() => loadConfig(rest)).toThrow(/PORTICO_GOOGLE_CLIENT_ID/);
   });
 
-  it("coerces PORTICO_PORT and keeps an explicit connection string", () => {
+  it("splits, trims, and lower-cases the allowed domains", () => {
+    const s = loadConfig({ ...valid, PORTICO_ALLOWED_DOMAINS: " Okadoc.com , example.org ,, " });
+    expect(s.allowedDomains).toEqual(["okadoc.com", "example.org"]);
+  });
+
+  it("defaults artifacts to the filesystem when no blob account is set", () => {
+    const s = loadConfig(valid);
+    expect(s.artifact).toEqual({ kind: "filesystem", dir: ".data/artifacts" });
+  });
+
+  it("uses Azure Blob when an account is set, keeping an explicit connection string", () => {
     const s = loadConfig({
       ...valid,
       PORTICO_PORT: "9090",
+      PORTICO_ARTIFACT_BLOB_ACCOUNT: "okadocblob",
       PORTICO_ARTIFACT_BLOB_CONNECTION_STRING: "DefaultEndpointsProtocol=https;...",
     });
     expect(s.port).toBe(9090);
-    expect(s.artifact.connectionString).toContain("DefaultEndpointsProtocol");
+    expect(s.artifact).toMatchObject({
+      kind: "azure-blob",
+      blobAccount: "okadocblob",
+      container: "portico-artifacts",
+    });
   });
 });

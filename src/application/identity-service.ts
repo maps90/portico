@@ -1,22 +1,18 @@
-import type {
-  OidcVerifier,
-  TokenStore,
-  User,
-  UserStore,
-} from "../ports/identity.js";
-import { assertTenantAllowed } from "../domain/identity.js";
+import type { OidcVerifier, TokenStore, User, UserStore } from "../ports/identity.js";
+import { assertIdentityAllowed } from "../domain/identity.js";
 
 export interface IdentityDeps {
   oidc: OidcVerifier;
   users: UserStore;
   tokens: TokenStore;
-  /** The single Entra tenant (Okadoc) allowed to log in. */
-  allowedTenantId: string;
+  /** Workspace domains allowed to sign in. Empty = any verified Google account. */
+  allowedDomains: readonly string[];
 }
 
 /**
- * Identity use-cases: start an OIDC login and complete it into an Portico user +
- * bearer token. Depends only on ports, so it is tested against in-memory fakes.
+ * Identity use-cases: start a Google sign-in and complete it into a Portico user
+ * plus a bearer token. Depends only on ports, so it is tested against in-memory
+ * fakes.
  */
 export class IdentityService {
   constructor(private readonly deps: IdentityDeps) {}
@@ -26,15 +22,12 @@ export class IdentityService {
   }
 
   /**
-   * Exchange the auth code, enforce the Okadoc tenant, upsert the user, and mint
-   * a fresh bearer token (shown to the user once for Jean's config).
+   * Exchange the auth code, enforce the domain allowlist, upsert the user, and
+   * mint a fresh bearer token (shown to the user once, for Jean's config).
    */
-  async completeLogin(
-    code: string,
-    redirectUri: string,
-  ): Promise<{ user: User; token: string }> {
+  async completeLogin(code: string, redirectUri: string): Promise<{ user: User; token: string }> {
     const claims = await this.deps.oidc.exchangeCode(code, redirectUri);
-    assertTenantAllowed(claims, this.deps.allowedTenantId);
+    assertIdentityAllowed(claims, this.deps.allowedDomains);
 
     const user = await this.deps.users.upsertByIdentity({
       issuer: claims.issuer,
@@ -43,5 +36,16 @@ export class IdentityService {
     });
     const { token } = await this.deps.tokens.mint(user.id, "login");
     return { user, token };
+  }
+
+  /**
+   * Replace every token the user holds with a single fresh one. Raw tokens are
+   * unrecoverable (only hashes are stored), so this is the only way to get a new
+   * one without signing in again — and it invalidates whatever was in Jean's
+   * config, which is the point.
+   */
+  async regenerateToken(user: User): Promise<{ token: string }> {
+    await this.deps.tokens.revokeAllForUser(user.id);
+    return this.deps.tokens.mint(user.id, "portal");
   }
 }

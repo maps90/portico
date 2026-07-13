@@ -22,10 +22,10 @@ export class UnauthorizedError extends DomainError {
   }
 }
 
-/** OIDC identity is valid but outside the allowed Entra tenant (not Okadoc). */
-export class TenantForbiddenError extends DomainError {
-  constructor(message = "identity is outside the allowed tenant") {
-    super(message, "tenant_forbidden");
+/** OIDC identity is valid but its domain is not on this instance's allowlist. */
+export class DomainForbiddenError extends DomainError {
+  constructor(message = "identity is outside the allowed domains") {
+    super(message, "domain_forbidden");
   }
 }
 

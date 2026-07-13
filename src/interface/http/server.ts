@@ -1,10 +1,13 @@
-import express, { type Express } from "express";
+import { existsSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import express, { type Express, type Request, type Response } from "express";
 import type { Pool } from "pg";
 import type { Settings } from "../../config.js";
 import type { OidcVerifier } from "../../ports/identity.js";
 import type { UpstreamOAuthClient } from "../../ports/oauth.js";
 import type { UpstreamGateway } from "../../ports/upstream.js";
-import { EntraOidcVerifier } from "../../adapters/oidc/entra.js";
+import { GoogleOidcVerifier } from "../../adapters/oidc/google.js";
 import { buildStores, type Stores } from "../../adapters/stores.js";
 import { buildRegistry } from "../../adapters/registry/default-registry.js";
 import { SessionCodec } from "../../adapters/session/cookie.js";
@@ -20,7 +23,9 @@ import { registerHealth } from "./health.js";
 import { registerIdentityRoutes } from "./identity-routes.js";
 import { registerConnectRoutes } from "./connect-routes.js";
 import { registerArtifactRoutes } from "./artifact-routes.js";
+import { registerApiRoutes } from "./api-routes.js";
 import { registerMcpRoute } from "./mcp-routes.js";
+import { page } from "./html.js";
 
 export interface Dependencies {
   settings: Settings;
@@ -46,11 +51,15 @@ export interface BuiltApp {
   sessions: SessionCodec;
 }
 
+/** Built portal assets (`web/dist`), reached the same way from `src/` and `dist/`. */
+const WEB_DIST = resolve(dirname(fileURLToPath(import.meta.url)), "../../../web/dist");
+
 /**
  * Composition root. Builds concrete adapters, injects them into application
  * services, and mounts the interface layer: health, identity (`/login`,
- * `/auth/entra/callback`), and the `/mcp` Streamable HTTP endpoint. Later
- * milestones add `/connect/*` and `/a/:id` here.
+ * `/auth/google/callback`), upstream linking (`/connect/*`), artifacts (`/a/:id`),
+ * the portal's `/api/*` surface, the portal itself, and the `/mcp` Streamable
+ * HTTP endpoint.
  */
 export function buildApp(deps: Dependencies): BuiltApp {
   const { settings, pool } = deps;
@@ -62,10 +71,10 @@ export function buildApp(deps: Dependencies): BuiltApp {
   // --- adapters ---
   const oidc =
     deps.overrides?.oidc ??
-    new EntraOidcVerifier({
-      tenantId: settings.entra.tenantId,
-      clientId: settings.entra.clientId,
-      clientSecret: settings.entra.clientSecret,
+    new GoogleOidcVerifier({
+      clientId: settings.google.clientId,
+      clientSecret: settings.google.clientSecret,
+      allowedDomains: settings.allowedDomains,
     });
   const oauthClient = deps.overrides?.oauthClient ?? new FetchUpstreamOAuthClient();
   const gateway = deps.overrides?.gateway ?? new McpUpstreamGateway();
@@ -81,7 +90,7 @@ export function buildApp(deps: Dependencies): BuiltApp {
     oidc,
     users: stores.users,
     tokens: stores.tokens,
-    allowedTenantId: settings.entra.tenantId,
+    allowedDomains: settings.allowedDomains,
   });
   const connections = new ConnectionsService({
     registry,
@@ -114,6 +123,14 @@ export function buildApp(deps: Dependencies): BuiltApp {
   registerIdentityRoutes(app, { identity, sessions, settings });
   registerConnectRoutes(app, { linking, sessions, users: stores.users, settings });
   registerArtifactRoutes(app, { artifacts, sessions, users: stores.users });
+  registerApiRoutes(app, {
+    identity,
+    connections,
+    sessions,
+    users: stores.users,
+    tokens: stores.tokens,
+    settings,
+  });
   registerMcpRoute(app, {
     tokens: stores.tokens,
     connections,
@@ -121,8 +138,36 @@ export function buildApp(deps: Dependencies): BuiltApp {
     artifacts,
     baseUrl: settings.baseUrl,
   });
+  registerPortal(app);
 
   return { app, stores, identity, connections, linking, proxy, artifacts, sessions };
+}
+
+/**
+ * Serves the built portal at `/`. It is a single page with no client-side router,
+ * so `/` returns index.html and the rest of `web/dist` is served as static assets.
+ * Under `make dev` the Vite server hosts the portal and proxies the API back here,
+ * so an unbuilt `web/dist` only affects `make run` — and then it says so instead of
+ * 404ing.
+ */
+function registerPortal(app: Express): void {
+  const built = existsSync(resolve(WEB_DIST, "index.html"));
+  if (built) app.use(express.static(WEB_DIST, { index: false }));
+
+  app.get("/", (_req: Request, res: Response) => {
+    if (!built) {
+      res
+        .status(503)
+        .send(
+          page(
+            "Portal not built",
+            "<h1>Portal not built</h1><p>Run <code>make build</code>, or <code>make dev</code> for hot reload.</p>",
+          ),
+        );
+      return;
+    }
+    res.sendFile(resolve(WEB_DIST, "index.html"));
+  });
 }
 
 /** Convenience for the process entry point, which only needs the Express app. */

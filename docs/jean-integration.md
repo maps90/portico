@@ -8,8 +8,8 @@ the artifact host — all behind one bearer token.
 
 ## The model
 
-- A user signs in once at `https://<portico-domain>/login` (Okadoc Entra) and gets
-  **one bearer token**.
+- A user signs in once at `https://<portico-domain>/` (Sign in with Google) and gets
+  **one bearer token**, then links their services from the portal.
 - Jean attaches portico as an HTTP MCP server, sending that token as
   `Authorization: Bearer <token>`.
 - portico resolves the token → user, and exposes that user's namespaced upstream
@@ -60,8 +60,8 @@ Portico issues **one token per OIDC user**, so each Slack user should use their 
 Portico token through the same way Jean threads `routing` (channel/thread):
 
 1. Add an `portico_tokens` table/port in Jean mapping Slack `user_id` → Portico bearer.
-2. When a user first needs it, Jean DMs them the `…/login` link; they paste the
-   returned token back to Jean, which stores it.
+2. When a user first needs it, Jean DMs them the portal link; they sign in, copy the
+   token, and paste it back to Jean, which stores it.
 3. Have `options_factory` read the current turn's Slack user (via a routing-style
    context) and inject that user's token.
 
@@ -90,12 +90,14 @@ Slack can't render rich HTML inline. When Jean produces a report/dashboard:
    `visibility`, `expiresInSeconds`).
 2. Portico stores it and returns a **login-gated** URL.
 3. Jean posts the URL into the thread. Teammates open it in a browser; they must
-   be signed in to Portico (Okadoc) to view — links are not world-readable.
+   be signed in to Portico (an allowed Google domain) to view — links are not
+   world-readable.
 
 ## Notes
 
 - portico is stateless per request; Jean can reconnect freely.
 - A `401` from `/mcp` means the token is missing/invalid/revoked — prompt the user
-  to sign in again at `…/login`.
+  to sign in again at the portal (regenerating a token in the portal revokes the old
+  one, so Jean's stored copy must be updated).
 - Portico holds all upstream OAuth tokens encrypted server-side; Jean never sees
   vendor credentials.
