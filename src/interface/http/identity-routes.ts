@@ -10,6 +10,15 @@ import { escapeHtml, page } from "./html.js";
 export const SESSION_COOKIE = "portico_session";
 const STATE_COOKIE = "portico_login_state";
 
+/**
+ * Carries the freshly minted bearer token from the login callback to the portal,
+ * which is a separate page load. HttpOnly, so the token is never readable by
+ * script — the portal gets it from `GET /api/token/pending`, which returns it once
+ * and clears this cookie. Short-lived: it exists only for that hand-off.
+ */
+export const NEW_TOKEN_COOKIE = "portico_new_token";
+export const NEW_TOKEN_TTL_SECONDS = 300;
+
 export interface IdentityRouteDeps {
   identity: IdentityService;
   sessions: SessionCodec;
@@ -17,8 +26,11 @@ export interface IdentityRouteDeps {
 }
 
 /**
- * `/login`, `/auth/google/callback`, `/logout`: Google sign-in → session cookie
- * (for the portal and the artifact viewer) + a bearer token (for Jean).
+ * `/login`, `/auth/google/callback`, `/logout`.
+ *
+ * A successful sign-in mints the bearer token and drops the browser straight onto
+ * the portal — the token is revealed there, in the token card, rather than on an
+ * interstitial page. One page after login, which is the whole point of the portal.
  */
 export function registerIdentityRoutes(app: Express, deps: IdentityRouteDeps): void {
   const { identity, sessions, settings } = deps;
@@ -61,31 +73,20 @@ export function registerIdentityRoutes(app: Express, deps: IdentityRouteDeps): v
           sameSite: "Lax",
           maxAgeSeconds: 12 * 60 * 60,
         }),
+        serializeCookie(NEW_TOKEN_COOKIE, token, {
+          httpOnly: true,
+          secure,
+          sameSite: "Lax",
+          maxAgeSeconds: NEW_TOKEN_TTL_SECONDS,
+        }),
         serializeCookie(STATE_COOKIE, "", { maxAgeSeconds: 0 }),
       ]);
-      res.status(200).send(
-        page(
-          "Signed in to Portico",
-          `<h1>You're signed in${user.email ? `, ${escapeHtml(user.email)}` : ""}</h1>
-           <p>This is your portico bearer token — the one token that reaches every
-           service you link. Copy it into Jean's configuration now:
-           <strong>it is shown only once.</strong></p>
-           <pre>${escapeHtml(token)}</pre>
-           <p class="muted">Lost it? Generate a new one from the portal — that
-           invalidates this one.</p>
-           <p><a class="btn" href="${escapeHtml(settings.portalUrl)}">Continue to the portal →</a></p>`,
-        ),
-      );
+      res.redirect(settings.portalUrl);
     } catch (err) {
       if (err instanceof DomainForbiddenError) {
         res
           .status(403)
-          .send(
-            page(
-              "Access denied",
-              `<h1>Access denied</h1><p>${escapeHtml(err.message)}</p>`,
-            ),
-          );
+          .send(page("Access denied", `<h1>Access denied</h1><p>${escapeHtml(err.message)}</p>`));
         return;
       }
       console.error("login callback error", err);
@@ -101,7 +102,11 @@ export function registerIdentityRoutes(app: Express, deps: IdentityRouteDeps): v
   });
 
   app.get("/logout", (_req: Request, res: Response) => {
-    res.setHeader("Set-Cookie", serializeCookie(SESSION_COOKIE, "", { secure, maxAgeSeconds: 0 }));
+    res.setHeader("Set-Cookie", [
+      serializeCookie(SESSION_COOKIE, "", { secure, maxAgeSeconds: 0 }),
+      // Never leave an unclaimed token behind for the next person on this browser.
+      serializeCookie(NEW_TOKEN_COOKIE, "", { secure, maxAgeSeconds: 0 }),
+    ]);
     res.redirect("/");
   });
 }

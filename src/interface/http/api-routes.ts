@@ -5,6 +5,8 @@ import type { SessionCodec } from "../../adapters/session/cookie.js";
 import type { ConnectionsService } from "../../application/connections-service.js";
 import type { IdentityService } from "../../application/identity-service.js";
 import { currentUser } from "./session.js";
+import { parseCookies, serializeCookie } from "./cookies.js";
+import { NEW_TOKEN_COOKIE } from "./identity-routes.js";
 
 export interface ApiRouteDeps {
   identity: IdentityService;
@@ -30,6 +32,7 @@ export const PORTAL_HEADER = "x-portico-portal";
  */
 export function registerApiRoutes(app: Express, deps: ApiRouteDeps): void {
   const { identity, connections, sessions, users, tokens, settings } = deps;
+  const isSecure = settings.baseUrl.startsWith("https");
 
   /** Resolves the session, or writes a 401 and returns null. */
   const requireUser = async (req: Request, res: Response): Promise<User | null> => {
@@ -57,6 +60,27 @@ export function registerApiRoutes(app: Express, deps: ApiRouteDeps): void {
     res.status(403).json({ error: "forbidden" });
     return false;
   };
+
+  /**
+   * Claims the token minted during login, exactly once. The login callback parked it
+   * in an HttpOnly cookie (script can't read it) and redirected here; this hands it
+   * to the portal and clears the cookie in the same response, so a reload can't
+   * surface it again. Returns `null` when there's nothing pending — the normal case
+   * for a returning visit.
+   */
+  app.get("/api/token/pending", async (req: Request, res: Response) => {
+    const user = await requireUser(req, res);
+    if (!user) return;
+
+    const token = parseCookies(req.headers.cookie)[NEW_TOKEN_COOKIE] ?? null;
+    if (token) {
+      res.setHeader(
+        "Set-Cookie",
+        serializeCookie(NEW_TOKEN_COOKIE, "", { secure: isSecure, maxAgeSeconds: 0 }),
+      );
+    }
+    res.json({ token: token || null });
+  });
 
   app.get("/api/me", async (req: Request, res: Response) => {
     const user = await requireUser(req, res);

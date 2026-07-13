@@ -4,6 +4,21 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Portico</title>
+    <script>
+      // Stamp the theme before first paint. Without this a dark-mode user sees one
+      // frame of the light tokens. It also guarantees data-theme is always present,
+      // which is what Tailwind's `dark:` selector matches on.
+      (function () {
+        var stored = localStorage.getItem("portico-theme");
+        var theme =
+          stored === "light" || stored === "dark"
+            ? stored
+            : window.matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light";
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

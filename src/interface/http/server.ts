@@ -166,7 +166,11 @@ function registerPortal(app: Express): void {
         );
       return;
     }
-    res.sendFile(resolve(WEB_DIST, "index.html"));
+    // Sent relative to a root, not as an absolute path: `send` refuses any path with
+    // a dot-segment in it, so an absolute send breaks whenever the app is deployed
+    // under a directory like `.claude/` or `/home/user/.local/…`. Only "index.html"
+    // is checked against that rule this way.
+    res.sendFile("index.html", { root: WEB_DIST });
   });
 }
 

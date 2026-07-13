@@ -3,7 +3,7 @@ import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import { loadConfig } from "../../config.js";
 import { buildApp, type BuiltApp } from "./server.js";
-import { SESSION_COOKIE } from "./identity-routes.js";
+import { SESSION_COOKIE, NEW_TOKEN_COOKIE } from "./identity-routes.js";
 
 const env: Record<string, string> = {
   PORTICO_BASE_URL: "http://localhost",
@@ -50,8 +50,32 @@ describe("/api (portal surface, in-memory)", () => {
     await new Promise<void>((resolve) => server.close(() => resolve()));
   });
 
+  it("hands the login-minted token to the portal exactly once, then forgets it", async () => {
+    const { token } = await built.stores.tokens.mint(userId, "login");
+    const withPending = `${cookie}; ${NEW_TOKEN_COOKIE}=${token}`;
+
+    const first = await fetch(`${origin}/api/token/pending`, { headers: { cookie: withPending } });
+    expect(first.status).toBe(200);
+    expect((await first.json()).token).toBe(token);
+    // The same response must clear the cookie, so a reload cannot surface it again.
+    expect(first.headers.get("set-cookie")).toContain(`${NEW_TOKEN_COOKIE}=;`);
+
+    // A load with no pending cookie (the normal, returning-visit case) reveals nothing.
+    const second = await fetch(`${origin}/api/token/pending`, { headers: { cookie } });
+    expect((await second.json()).token).toBeNull();
+  });
+
+  it("will not reveal a pending token to a request with no session", async () => {
+    const { token } = await built.stores.tokens.mint(userId, "login");
+    const res = await fetch(`${origin}/api/token/pending`, {
+      headers: { cookie: `${NEW_TOKEN_COOKIE}=${token}` },
+    });
+    expect(res.status).toBe(401);
+    expect(await res.text()).not.toContain(token);
+  });
+
   it("401s every endpoint without a session", async () => {
-    for (const path of ["/api/me", "/api/connections"]) {
+    for (const path of ["/api/me", "/api/connections", "/api/token/pending"]) {
       const res = await fetch(`${origin}${path}`);
       expect(res.status).toBe(401);
       expect((await res.json()).loginUrl).toBe("/login");
@@ -67,8 +91,12 @@ describe("/api (portal surface, in-memory)", () => {
     const res = await fetch(`${origin}/api/me`, { headers: { cookie } });
     expect(res.status).toBe(200);
     const body = await res.json();
+
     expect(body.email).toBe("u@okadoc.com");
-    expect(body.tokenCount).toBe(1);
+    // Counted against the store rather than a literal: other cases in this file mint
+    // tokens too, and this assertion is about the payload, not the running total.
+    expect(body.tokenCount).toBe((await built.stores.tokens.listActive(userId)).length);
+    expect(body.tokenCount).toBeGreaterThan(0);
     expect(JSON.stringify(body)).not.toMatch(/token"\s*:\s*"[a-z0-9_-]{20,}/i);
   });
 
@@ -144,5 +172,35 @@ describe("/api (portal surface, in-memory)", () => {
       headers: { ...portal(cookie), origin: "https://evil.example" },
     });
     expect(res.status).toBe(403);
+  });
+});
+
+/**
+ * The portal is served from a path that may contain a dot-directory (a git worktree
+ * under `.claude/`, an install under `~/.local`, …). `res.sendFile` with an absolute
+ * path silently 404s in that case, because `send` ignores dot-segments — so the page
+ * has to be sent relative to a root instead.
+ */
+describe("portal serving", () => {
+  it("serves index.html at / even from a path containing a dot-directory", async () => {
+    Object.assign(process.env, env);
+    const built = buildApp({ settings: loadConfig(process.env), pool: null });
+    const server = await new Promise<Server>((resolve) => {
+      const s = built.app.listen(0, () => resolve(s));
+    });
+    const base = `http://localhost:${(server.address() as AddressInfo).port}`;
+
+    const res = await fetch(`${base}/`);
+    const body = await res.text();
+
+    // 503 = the portal simply isn't built in this checkout, which is not what we're
+    // testing. Anything else must be a real page, never a 404.
+    if (res.status !== 503) {
+      expect(res.status).toBe(200);
+      expect(body).toContain("<div id=\"root\">");
+    }
+
+    for (const k of Object.keys(env)) delete process.env[k];
+    await new Promise<void>((resolve) => server.close(() => resolve()));
   });
 });

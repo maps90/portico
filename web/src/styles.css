@@ -1,94 +1,52 @@
 /*
- * portico portal — developer-tool aesthetic.
- * Slate surfaces, one green accent reserved for "linked / go", Inter throughout.
- * Dark is the design's home; light is a first-class translation, not an inversion.
+ * portico portal.
+ *
+ * Tailwind does the layout; this file owns the two things it can't:
+ *   1. the theme tokens — Tailwind's colours resolve to these variables, so a theme
+ *      switch flips them here and every utility follows, and
+ *   2. the primitives repeated across the UI (buttons, badges, cards), @apply'd once
+ *      instead of copy-pasted into every component.
  */
 
 @import "@fontsource-variable/inter";
 
-:root {
-  color-scheme: light dark;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-  /* Semantic tokens — components never reach for a raw hex. */
-  --bg: #f6f7f9;
-  --surface: #ffffff;
-  --surface-2: #f1f3f6;
-  --fg: #0f172a;
-  --fg-muted: #5a6779;
-  /* Subtle, but still ≥4.5:1 on both --bg and --surface — it carries real text
-     (tool prefixes), not decoration. */
-  --fg-subtle: #64748b;
-  --border: #dfe3e9;
-  --border-strong: #c6ccd6;
+@layer base {
+  :root {
+    color-scheme: light dark;
 
-  --accent: #15803d;
-  --accent-fg: #ffffff;
-  --accent-soft: #ecfdf3;
-  --accent-line: #a6e9c1;
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --surface-2: #f1f3f6;
+    --fg: #0f172a;
+    --fg-muted: #5a6779;
+    /* ≥4.5:1 on both --bg and --surface: it carries real text, not decoration. */
+    --fg-subtle: #64748b;
+    --border: #dfe3e9;
+    --border-strong: #c6ccd6;
 
-  --warn: #a25405;
-  --warn-soft: #fff7e6;
-  --warn-line: #f0cf94;
+    --accent: #15803d;
+    --accent-fg: #ffffff;
+    --accent-soft: #ecfdf3;
+    --accent-line: #a6e9c1;
 
-  --danger: #b42318;
-  --danger-soft: #fef3f2;
+    --warn: #a25405;
+    --warn-soft: #fff7e6;
+    --warn-line: #f0cf94;
 
-  --ring: #2563eb;
+    --danger: #b42318;
+    --danger-soft: #fef3f2;
 
-  --radius: 10px;
-  --radius-lg: 14px;
-  --shadow-sm: 0 1px 2px rgb(15 23 42 / 6%);
-  --shadow-md: 0 4px 16px -4px rgb(15 23 42 / 10%);
+    --ring: #2563eb;
 
-  /* One rhythm for everything: 4px scale. */
-  --s1: 4px;
-  --s2: 8px;
-  --s3: 12px;
-  --s4: 16px;
-  --s5: 24px;
-  --s6: 32px;
-  --s7: 48px;
+    --shadow-sm: 0 1px 2px rgb(15 23 42 / 6%);
+    --shadow-md: 0 4px 16px -4px rgb(15 23 42 / 10%);
+  }
 
-  --duration: 180ms;
-  --ease: cubic-bezier(0.2, 0, 0.13, 1);
-
-  --font: "Inter Variable", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
-    sans-serif;
-  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
-}
-
-/* Dark: the OLED-leaning slate the design system called for. */
-:root[data-theme="dark"] {
-  --bg: #0b0f16;
-  --surface: #111722;
-  --surface-2: #161d2a;
-  --fg: #e8edf4;
-  --fg-muted: #96a2b4;
-  --fg-subtle: #7d8ca6;
-  --border: #222c3b;
-  --border-strong: #33405480;
-
-  --accent: #3ddc84;
-  --accent-fg: #06210f;
-  --accent-soft: #0e2a1a;
-  --accent-line: #1f5136;
-
-  --warn: #fdb022;
-  --warn-soft: #2b1f08;
-  --warn-line: #5c4413;
-
-  --danger: #f97066;
-  --danger-soft: #2c1512;
-
-  --ring: #5b9dff;
-
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
-  --shadow-md: 0 8px 28px -8px rgb(0 0 0 / 60%);
-}
-
-/* System preference when the user hasn't chosen explicitly. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
+  :root[data-theme="dark"] {
     --bg: #0b0f16;
     --surface: #111722;
     --surface-2: #161d2a;
@@ -96,7 +54,7 @@
     --fg-muted: #96a2b4;
     --fg-subtle: #7d8ca6;
     --border: #222c3b;
-    --border-strong: #33405480;
+    --border-strong: #334054;
 
     --accent: #3ddc84;
     --accent-fg: #06210f;
@@ -115,618 +73,102 @@
     --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
     --shadow-md: 0 8px 28px -8px rgb(0 0 0 / 60%);
   }
-}
 
-* {
-  box-sizing: border-box;
-}
+  body {
+    @apply bg-bg font-sans text-fg antialiased;
+    font-size: 15px;
+    line-height: 1.55;
+  }
 
-html,
-body,
-#root {
-  min-height: 100%;
-}
+  /* Keyboard users get a ring; pointer users don't. Never removed outright. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2;
+    --tw-ring-offset-color: var(--bg);
+  }
 
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--fg);
-  font-family: var(--font);
-  font-size: 15px;
-  line-height: 1.55;
-  -webkit-font-smoothing: antialiased;
-}
-
-/* Keyboard users get a ring; mouse users don't. Never remove it outright. */
-:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
-  border-radius: 6px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 
-/* ── layout ─────────────────────────────────────────────────────────── */
+@layer components {
+  .btn {
+    @apply inline-flex min-h-[40px] cursor-pointer items-center justify-center gap-2
+           whitespace-nowrap rounded-[10px] border border-transparent bg-fg px-4
+           text-sm font-medium text-bg no-underline transition-opacity duration-200
+           hover:opacity-90 active:opacity-75 disabled:cursor-default disabled:opacity-45;
+  }
 
-.shell {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: var(--s6) var(--s4) var(--s7);
-}
+  .btn-accent {
+    @apply bg-accent text-accent-fg;
+  }
 
-@media (min-width: 768px) {
-  .shell {
-    padding: var(--s7) var(--s5) 96px;
+  /* The default for anything that isn't the single primary action on a screen. */
+  .btn-outline {
+    @apply border-line-strong bg-transparent text-fg hover:bg-surface-2 hover:opacity-100;
+  }
+
+  .btn-quiet {
+    @apply border-transparent bg-transparent px-3 text-fg-muted
+           hover:bg-surface-2 hover:text-fg hover:opacity-100;
+  }
+
+  /* Destructive intent surfaces on hover, so the service list isn't a wall of red. */
+  .btn-danger-quiet {
+    @apply hover:border-transparent hover:bg-danger-soft hover:text-danger;
+  }
+
+  .btn-sm {
+    @apply min-h-[34px] px-3 text-[13px];
+  }
+
+  .btn-icon {
+    @apply min-h-[36px] min-w-[36px] px-0;
+  }
+
+  .btn-google {
+    @apply min-h-[46px] border-line-strong bg-surface px-6 text-[15px] text-fg
+           shadow-card hover:bg-surface-2 hover:opacity-100;
+  }
+
+  .card {
+    @apply mb-4 rounded-card border border-line bg-surface p-6 shadow-card;
+  }
+
+  /* Colour never carries meaning alone — every badge also states its name. */
+  .badge {
+    @apply inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border
+           border-line bg-surface-2 px-2.5 py-[3px] text-xs font-medium text-fg-muted;
+  }
+
+  .badge-connected {
+    @apply border-accent-line bg-accent-soft text-accent;
+  }
+
+  .badge-expired {
+    @apply border-warn-line bg-warn-soft text-warn;
+  }
+
+  .skeleton {
+    @apply animate-shimmer rounded-md;
+    background: linear-gradient(
+      90deg,
+      var(--surface-2) 25%,
+      var(--border) 37%,
+      var(--surface-2) 63%
+    );
+    background-size: 400% 100%;
   }
 }
 
-.topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s4);
-  margin-bottom: var(--s6);
-}
-
-.topbar-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-  min-width: 0;
-}
-
-.identity {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-  min-width: 0;
-  color: var(--fg-muted);
-  font-size: 0.875rem;
-}
-
-.identity .email {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 22ch;
-}
-
-/* On a phone the row can't hold brand + email + two controls. The email truncates
-   and "Sign out" falls back to its icon — still labelled for screen readers. */
-@media (max-width: 560px) {
-  .identity .email {
-    max-width: 12ch;
-  }
-
-  .btn-label {
-    display: none;
-  }
-}
-
-/* ── brand ──────────────────────────────────────────────────────────── */
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  font-size: 1.0625rem;
-}
-
-.brand-mark {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  background: var(--fg);
-  color: var(--bg);
-  flex: none;
-}
-
-.brand-lg {
-  font-size: 1.5rem;
-  gap: var(--s3);
-}
-
-.brand-lg .brand-mark {
-  width: 40px;
-  height: 40px;
-  border-radius: 11px;
-}
-
-/* ── cards ──────────────────────────────────────────────────────────── */
-
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  padding: var(--s5);
-  margin-bottom: var(--s4);
-}
-
-.card-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--s4);
-}
-
-.card h2 {
-  margin: 0;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  letter-spacing: -0.005em;
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-}
-
-.card h2 svg {
-  color: var(--fg-subtle);
-}
-
-.hint {
-  margin: var(--s1) 0 0;
-  color: var(--fg-muted);
-  font-size: 0.8125rem;
-  line-height: 1.5;
-}
-
-.lede {
-  color: var(--fg-muted);
-  margin: 0 0 var(--s5);
-  max-width: 62ch;
-}
-
-/* ── buttons ────────────────────────────────────────────────────────── */
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--s2);
-  /* 44px tall: a real touch target, not a 28px desktop-only pill. */
-  min-height: 40px;
-  padding: 0 var(--s4);
-  border-radius: var(--radius);
-  border: 1px solid transparent;
-  background: var(--fg);
-  color: var(--bg);
-  font: inherit;
-  font-size: 0.875rem;
-  font-weight: 550;
-  text-decoration: none;
-  white-space: nowrap;
-  cursor: pointer;
-  transition:
-    background-color var(--duration) var(--ease),
-    border-color var(--duration) var(--ease),
-    color var(--duration) var(--ease),
-    opacity var(--duration) var(--ease);
-}
-
-.btn:hover:not(:disabled) {
-  opacity: 0.88;
-}
-
-.btn:active:not(:disabled) {
-  opacity: 0.78;
-}
-
-.btn:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-
-.btn-accent {
-  background: var(--accent);
-  color: var(--accent-fg);
-}
-
-/* Outline: the default for anything that isn't the one primary action. */
-.btn-outline {
-  background: transparent;
-  color: var(--fg);
-  border-color: var(--border-strong);
-}
-
-.btn-outline:hover:not(:disabled) {
-  background: var(--surface-2);
-  opacity: 1;
-}
-
-.btn-quiet {
-  background: transparent;
-  color: var(--fg-muted);
-  border-color: transparent;
-  padding: 0 var(--s3);
-}
-
-.btn-quiet:hover:not(:disabled) {
-  background: var(--surface-2);
-  color: var(--fg);
-  opacity: 1;
-}
-
-/* Destructive intent shows up on hover, so the row doesn't read as a wall of red. */
-.btn-danger-quiet:hover:not(:disabled) {
-  background: var(--danger-soft);
-  color: var(--danger);
-  border-color: transparent;
-}
-
-.btn-sm {
-  min-height: 34px;
-  font-size: 0.8125rem;
-  padding: 0 var(--s3);
-}
-
-.btn-icon {
-  min-height: 36px;
-  min-width: 36px;
-  padding: 0;
-}
-
-.btn-google {
-  background: var(--surface);
-  color: var(--fg);
-  border-color: var(--border-strong);
-  min-height: 46px;
-  padding: 0 var(--s5);
-  box-shadow: var(--shadow-sm);
-  font-size: 0.9375rem;
-}
-
-.btn-google:hover:not(:disabled) {
-  background: var(--surface-2);
-  opacity: 1;
-}
-
-.spin {
-  animation: spin 900ms linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* ── token ──────────────────────────────────────────────────────────── */
-
-.token-meta {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-  margin-top: var(--s1);
-  color: var(--fg-muted);
-  font-size: 0.8125rem;
-}
-
-.token-reveal {
-  margin-top: var(--s4);
-  padding: var(--s4);
-  border-radius: var(--radius);
-  background: var(--accent-soft);
-  border: 1px solid var(--accent-line);
-  /* The one moment the token exists on screen — earn the attention, once. */
-  animation: reveal 260ms var(--ease);
-}
-
-@keyframes reveal {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-}
-
-.token-reveal .warn-line {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-  margin: 0 0 var(--s3);
-  font-size: 0.8125rem;
-  color: var(--fg);
-}
-
-.token-row {
-  display: flex;
-  gap: var(--s2);
-  align-items: stretch;
-}
-
-.token-row code {
-  flex: 1;
-  min-width: 0;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: var(--s2) var(--s3);
-  font-family: var(--mono);
-  font-size: 0.8125rem;
-  font-variant-numeric: tabular-nums;
-  overflow-x: auto;
-  white-space: nowrap;
-  user-select: all;
-  display: flex;
-  align-items: center;
-}
-
-/* ── services ───────────────────────────────────────────────────────── */
-
-.services {
-  list-style: none;
-  margin: var(--s4) 0 0;
-  padding: 0;
-}
-
-.service {
-  display: grid;
-  grid-template-columns: auto 1fr auto auto;
-  align-items: center;
-  gap: var(--s3);
-  padding: var(--s3) 0;
-  border-top: 1px solid var(--border);
-}
-
-.service-logo {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 9px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  flex: none;
-}
-
-.service-logo svg {
-  width: 18px;
-  height: 18px;
-}
-
-/* GitHub's brand black would sink into the dark surface; lift it to the foreground. */
-:root[data-theme="dark"] .service-logo[data-brand="github"] {
-  color: var(--fg) !important;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .service-logo[data-brand="github"] {
-    color: var(--fg) !important;
-  }
-}
-
-.service-text {
-  min-width: 0;
-}
-
-.service-name {
-  font-weight: 550;
-  font-size: 0.9375rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.service-prefix {
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  color: var(--fg-subtle);
-}
-
-/* State is never colour alone — each badge carries a word. */
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.75rem;
-  font-weight: 550;
-  padding: 3px 9px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  color: var(--fg-muted);
-  white-space: nowrap;
-}
-
-.badge .dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  flex: none;
-}
-
-.badge-connected {
-  color: var(--accent);
-  background: var(--accent-soft);
-  border-color: var(--accent-line);
-}
-
-.badge-expired {
-  color: var(--warn);
-  background: var(--warn-soft);
-  border-color: var(--warn-line);
-}
-
-.service-action {
-  justify-self: end;
-}
-
-.note {
-  font-size: 0.75rem;
-  color: var(--fg-subtle);
-  justify-self: end;
-  text-align: right;
-  max-width: 14ch;
-}
-
-@media (max-width: 560px) {
-  .service {
-    grid-template-columns: auto 1fr auto;
-    row-gap: var(--s2);
-  }
-
-  .service-action,
-  .note {
-    grid-column: 2 / -1;
-    justify-self: start;
-    text-align: left;
-  }
-}
-
-/* ── skeleton (reserve the space the data will occupy) ───────────────── */
-
-.skeleton {
-  border-radius: 6px;
-  background: linear-gradient(90deg, var(--surface-2) 25%, var(--border) 37%, var(--surface-2) 63%);
-  background-size: 400% 100%;
-  animation: shimmer 1.4s ease-in-out infinite;
-}
-
-@keyframes shimmer {
-  from {
-    background-position: 100% 50%;
-  }
-  to {
-    background-position: 0 50%;
-  }
-}
-
-.skeleton-row {
-  display: flex;
-  align-items: center;
-  gap: var(--s3);
-  padding: var(--s3) 0;
-  border-top: 1px solid var(--border);
-}
-
-/* ── sign-in ────────────────────────────────────────────────────────── */
-
-.signin {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--s5);
-  min-height: 100dvh;
-  padding: var(--s5);
-  text-align: center;
-}
-
-.signin-copy {
-  max-width: 46ch;
-  color: var(--fg-muted);
-  margin: 0;
-}
-
-.signin-points {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--s2);
-  text-align: left;
-  font-size: 0.875rem;
-  color: var(--fg-muted);
-}
-
-.signin-points li {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-}
-
-.signin-points svg {
-  color: var(--accent);
-  flex: none;
-}
-
-.signin-foot {
-  font-size: 0.75rem;
-  color: var(--fg-subtle);
-  margin: 0;
-}
-
-/* ── dialog ─────────────────────────────────────────────────────────── */
-
-dialog {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  color: var(--fg);
-  padding: var(--s5);
-  max-width: 400px;
-  width: calc(100% - var(--s6));
-  box-shadow: var(--shadow-md);
-}
-
+/* ::backdrop sits outside the document tree — no utility class can reach it. */
 dialog::backdrop {
-  /* Strong enough to isolate the dialog, per the scrim guidance. */
   background: rgb(2 6 16 / 55%);
   backdrop-filter: blur(2px);
-}
-
-dialog h3 {
-  margin: 0 0 var(--s2);
-  font-size: 1rem;
-}
-
-dialog p {
-  margin: 0 0 var(--s5);
-  color: var(--fg-muted);
-  font-size: 0.875rem;
-}
-
-.dialog-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--s2);
-}
-
-/* ── misc ───────────────────────────────────────────────────────────── */
-
-.inline-error {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-  margin: var(--s3) 0 0;
-  color: var(--danger);
-  font-size: 0.8125rem;
-}
-
-.center-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--s4);
-  min-height: 100dvh;
-  padding: var(--s5);
-  text-align: center;
-  color: var(--fg-muted);
-}
-
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-  border: 0;
 }
