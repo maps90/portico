@@ -1,0 +1,91 @@
+name: release
+
+# Publishes the container image to GHCR.
+#
+#   - every push to main  -> ghcr.io/maps90/portico:<full-sha> and :main
+#   - workflow_dispatch   -> the same, plus whatever tag you type (e.g. 0.1.0)
+#
+# Deployments pin the immutable <full-sha> tag, never :main — Flux reconciles a
+# specific digest, and a moving tag makes "what is actually running" unanswerable.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Extra image tag to publish (e.g. 0.1.0). Optional."
+        required: false
+        default: ""
+
+# One publish at a time; never cancel one mid-flight.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  publish-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Assemble tags
+        id: tags
+        # EXTRA_TAG comes in via env, never interpolated into the script body: a
+        # dispatch input is attacker-shaped text, and `${{ inputs.tag }}` inline
+        # would let it run as shell. Also validated, so it can only be a real tag.
+        env:
+          EXTRA_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          if [ -n "$EXTRA_TAG" ] && ! printf '%s' "$EXTRA_TAG" | grep -qE '^[A-Za-z0-9._-]{1,128}$'; then
+            echo "::error::Refusing tag '$EXTRA_TAG' — allowed: letters, digits, dot, underscore, dash."
+            exit 1
+          fi
+          {
+            echo "list<<EOF"
+            echo "${IMAGE}:${GITHUB_SHA}"
+            echo "${IMAGE}:main"
+            [ -n "$EXTRA_TAG" ] && echo "${IMAGE}:${EXTRA_TAG}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: docker/build-push-action@v6
+        id: build
+        with:
+          context: .
+          push: true
+          # The cluster (AKS) is amd64. Building arm64 as well would double the
+          # build for an image nothing pulls on that arch.
+          platforms: linux/amd64
+          tags: ${{ steps.tags.outputs.list }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # The exact reference to paste into the Flux manifest.
+      - name: Summary
+        run: |
+          {
+            echo "### Image published"
+            echo
+            echo '```'
+            echo "${IMAGE}:${GITHUB_SHA}"
+            echo "digest: ${{ steps.build.outputs.digest }}"
+            echo '```'
+            echo
+            echo "Pin the sha tag in \`infrastructure/admin-v2/portico\` — not \`:main\`."
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel superseded PR runs; never cancel a run on main.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Installs the root workspace and web/ in one go.
+      - run: npm ci
+
+      - name: Typecheck (API + portal)
+        run: npm run typecheck
+
+      # The suite runs entirely on in-memory adapters: no Postgres, no Azure, no
+      # credentials. That is deliberate — if this job ever needs a service block,
+      # something has leaked out of the ports.
+      - name: Test
+        run: npm test
+
+      - name: Build (tsc + vite)
+        run: npm run build
+
+  image:
+    # Proves the Dockerfile still builds — it compiles both the API and the portal,
+    # so a break here is invisible to `npm test`. Build only; publishing is release.yml.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
