@@ -76,25 +76,41 @@ describe("/connect flow (integration, in-memory)", () => {
     const state = authorizeUrl.searchParams.get("state")!;
     expect(authorizeUrl.searchParams.get("redirect_uri")).toContain("/connect/atlassian/callback");
 
-    // callback: exchange + store (session cookie required)
+    // callback: exchange + store, then land the browser back on the portal
     const cb = await fetch(`${origin}/connect/atlassian/callback?state=${state}&code=the-code`, {
       headers: { cookie },
       redirect: "manual",
     });
-    expect(cb.status).toBe(200);
-    expect(await cb.text()).toContain("Connected");
+    expect(cb.status).toBe(302);
+    const back = new URL(cb.headers.get("location")!);
+    expect(back.searchParams.get("connected")).toBe("atlassian");
 
     const conn = await built.stores.vault.get(userId, "atlassian");
     expect(conn?.status).toBe("active");
     expect(conn?.accessToken).toBe("UP_AT");
   });
 
-  it("rejects a replayed state on the callback", async () => {
+  it("rejects a replayed state, returning to the portal with an error", async () => {
     const begin = await fetch(`${origin}/connect/atlassian`, { headers: { cookie }, redirect: "manual" });
     const state = new URL(begin.headers.get("location")!).searchParams.get("state")!;
     await fetch(`${origin}/connect/atlassian/callback?state=${state}&code=c`, { headers: { cookie }, redirect: "manual" });
+
     const replay = await fetch(`${origin}/connect/atlassian/callback?state=${state}&code=c`, { headers: { cookie }, redirect: "manual" });
-    expect(replay.status).toBe(400);
+    expect(replay.status).toBe(302);
+    const back = new URL(replay.headers.get("location")!);
+    expect(back.searchParams.get("connect_error")).toBe("expired_link");
+    expect(back.searchParams.get("connected")).toBeNull();
+  });
+
+  it("returns to the portal with an error when the user declines consent", async () => {
+    const declined = await fetch(`${origin}/connect/atlassian/callback?error=access_denied`, {
+      headers: { cookie },
+      redirect: "manual",
+    });
+    expect(declined.status).toBe(302);
+    expect(new URL(declined.headers.get("location")!).searchParams.get("connect_error")).toBe(
+      "declined",
+    );
   });
 
   it("redirects the callback to /login when no session is present (CSRF defense)", async () => {

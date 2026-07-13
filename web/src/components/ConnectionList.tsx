@@ -45,55 +45,57 @@ export function ConnectionList({ connections, onChange }: Props): JSX.Element {
 
   return (
     <section className="card">
-      <div className="card-head">
-        <div>
-          <h2>Services</h2>
-          <p className="hint">
-            Linked services are proxied through portico, their tools namespaced by prefix.
-          </p>
-        </div>
-      </div>
+      <h2 className="text-[15px] font-semibold">Services</h2>
+      <p className="mt-1 text-[13px] leading-relaxed text-fg-muted">
+        Sign in to a service once; portico keeps the authorization and proxies its tools,
+        namespaced by prefix.
+      </p>
 
-      <ul className="services">
+      <ul className="mt-4 list-none p-0">
         {connections.map((service) => {
           const state = STATE[service.state];
+          const isBusy = busy === service.id;
+
           return (
-            <li key={service.id} className="service">
+            <li
+              key={service.id}
+              className="grid grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-2 border-t border-line py-3 sm:grid-cols-[auto_1fr_auto_auto]"
+            >
               <ServiceLogo id={service.id} />
 
-              <div className="service-text">
-                <div className="service-name">{service.displayName}</div>
-                <div className="service-prefix">{service.toolPrefix}__*</div>
+              <div className="min-w-0">
+                <div className="truncate text-[15px] font-medium">{service.displayName}</div>
+                <div className="font-mono text-xs text-fg-subtle">{service.toolPrefix}__*</div>
               </div>
 
               <span
                 className={state.className}
                 {...(service.state === "unavailable" ? { title: envHint(service.id) } : {})}
               >
-                <span className="dot" aria-hidden="true" />
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" aria-hidden="true" />
                 {state.label}
               </span>
 
               {service.state === "connected" ? (
                 <button
                   type="button"
-                  className="btn btn-quiet btn-danger-quiet btn-sm service-action"
+                  className="btn btn-quiet btn-danger-quiet btn-sm col-start-2 justify-self-start sm:col-auto sm:justify-self-end"
                   onClick={() => setPending(service)}
-                  disabled={busy === service.id}
+                  disabled={isBusy}
                   aria-label={`Disconnect ${service.displayName}`}
                 >
-                  {busy === service.id ? (
-                    <LoaderCircle size={14} className="spin" aria-hidden="true" />
+                  {isBusy ? (
+                    <LoaderCircle size={14} className="animate-spin" aria-hidden="true" />
                   ) : (
                     <Unplug size={14} aria-hidden="true" />
                   )}
                   Disconnect
                 </button>
               ) : service.connectUrl ? (
-                // A real navigation, not fetch(): the vendor's consent screen must
+                // A real navigation, not fetch(): the vendor's consent screen has to
                 // render top-level — it refuses to be framed or XHR'd.
                 <a
-                  className="btn btn-outline btn-sm service-action"
+                  className="btn btn-outline btn-sm col-start-2 justify-self-start sm:col-auto sm:justify-self-end"
                   href={service.connectUrl}
                   aria-label={`Connect ${service.displayName}`}
                 >
@@ -101,8 +103,8 @@ export function ConnectionList({ connections, onChange }: Props): JSX.Element {
                   <ArrowRight size={14} aria-hidden="true" />
                 </a>
               ) : (
-                // Nothing to do here, but the column still holds so rows stay aligned.
-                <span className="service-action" aria-hidden="true" />
+                // Nothing actionable, but the column still holds so rows stay aligned.
+                <span aria-hidden="true" />
               )}
             </li>
           );
@@ -110,7 +112,7 @@ export function ConnectionList({ connections, onChange }: Props): JSX.Element {
       </ul>
 
       {error ? (
-        <p className="inline-error" role="alert">
+        <p className="mt-3 flex items-center gap-2 text-[13px] text-danger" role="alert">
           <CircleAlert size={14} aria-hidden="true" />
           {error}
         </p>

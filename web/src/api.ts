@@ -55,6 +55,13 @@ export const api = {
   connections: () =>
     request<{ connections: Connection[] }>("/api/connections").then((r) => r.connections),
 
+  /**
+   * Claims the token minted during login, if this page load followed one. The server
+   * returns it once and clears it, so a refresh yields null — call it exactly once,
+   * on mount, and hold the result.
+   */
+  pendingToken: () => request<{ token: string | null }>("/api/token/pending").then((r) => r.token),
+
   disconnect: (id: string) =>
     request<{ connections: Connection[] }>(`/api/connections/${encodeURIComponent(id)}/disconnect`, {
       method: "POST",

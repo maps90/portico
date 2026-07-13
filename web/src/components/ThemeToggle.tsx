@@ -1,34 +1,22 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Moon, Sun } from "lucide-react";
 
 type Theme = "light" | "dark";
 
 const STORAGE_KEY = "portico-theme";
 
-const systemTheme = (): Theme =>
-  window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+/** The boot script in index.html already resolved this before first paint. */
+const currentTheme = (): Theme =>
+  document.documentElement.dataset.theme === "dark" ? "dark" : "light";
 
-const storedTheme = (): Theme | null => {
-  const value = localStorage.getItem(STORAGE_KEY);
-  return value === "light" || value === "dark" ? value : null;
-};
-
-/**
- * Follows the OS by default and only pins `data-theme` once the user chooses —
- * so an untouched portal keeps tracking the system as it flips.
- */
 export function ThemeToggle(): JSX.Element {
-  const [theme, setTheme] = useState<Theme>(() => storedTheme() ?? systemTheme());
-
-  useEffect(() => {
-    if (storedTheme()) document.documentElement.dataset.theme = theme;
-  }, [theme]);
+  const [theme, setTheme] = useState<Theme>(currentTheme);
+  const target: Theme = theme === "dark" ? "light" : "dark";
 
   const toggle = () => {
-    const next: Theme = theme === "dark" ? "light" : "dark";
-    localStorage.setItem(STORAGE_KEY, next);
-    document.documentElement.dataset.theme = next;
-    setTheme(next);
+    localStorage.setItem(STORAGE_KEY, target);
+    document.documentElement.dataset.theme = target;
+    setTheme(target);
   };
 
   return (
@@ -36,8 +24,8 @@ export function ThemeToggle(): JSX.Element {
       type="button"
       className="btn btn-quiet btn-icon"
       onClick={toggle}
-      aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
-      title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+      aria-label={`Switch to ${target} theme`}
+      title={`Switch to ${target} theme`}
     >
       {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
     </button>

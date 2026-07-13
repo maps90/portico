@@ -11,21 +11,21 @@ const POINTS = [
 /** Signed-out state. One way in, one thing to do. */
 export function SignIn(): JSX.Element {
   return (
-    <main className="signin">
-      <div style={{ position: "fixed", top: 16, right: 16 }}>
+    <main className="flex min-h-dvh flex-col items-center justify-center gap-6 p-6 text-center">
+      <div className="fixed right-4 top-4">
         <ThemeToggle />
       </div>
 
       <Brand size="lg" />
 
-      <p className="signin-copy">
+      <p className="max-w-[46ch] text-fg-muted">
         A single MCP gateway to Jira, Drive, GitHub and everything else you link.
       </p>
 
-      <ul className="signin-points">
+      <ul className="flex list-none flex-col gap-2 p-0 text-left text-sm text-fg-muted">
         {POINTS.map((point) => (
-          <li key={point}>
-            <Check size={15} strokeWidth={2.5} aria-hidden="true" />
+          <li key={point} className="flex items-center gap-2">
+            <Check size={15} strokeWidth={2.5} className="shrink-0 text-accent" aria-hidden="true" />
             {point}
           </li>
         ))}
@@ -36,12 +36,12 @@ export function SignIn(): JSX.Element {
         Sign in with Google
       </a>
 
-      <p className="signin-foot">You'll be redirected to Google to authorize.</p>
+      <p className="text-xs text-fg-subtle">You'll be redirected to Google to authorize.</p>
     </main>
   );
 }
 
-/** Google's mark, in its official four colours — required by their branding rules. */
+/** Google's mark in its official four colours, as their branding rules require. */
 function GoogleMark(): JSX.Element {
   return (
     <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">

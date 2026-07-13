@@ -4,15 +4,26 @@ interface Props {
 
 /**
  * The portico mark: a gateway — one arch, many things passing through it. Drawn
- * rather than imported so it inherits the theme's foreground colour.
+ * inline rather than imported, so it inherits the theme's foreground colour.
  */
 export function Brand({ size = "md" }: Props): JSX.Element {
+  const large = size === "lg";
+
   return (
-    <div className={`brand ${size === "lg" ? "brand-lg" : ""}`}>
-      <span className="brand-mark" aria-hidden="true">
+    <div
+      className={`flex items-center font-semibold tracking-tight ${
+        large ? "gap-3 text-2xl" : "gap-2 text-[17px]"
+      }`}
+    >
+      <span
+        className={`grid shrink-0 place-items-center bg-fg text-bg ${
+          large ? "h-10 w-10 rounded-[11px]" : "h-7 w-7 rounded-lg"
+        }`}
+        aria-hidden="true"
+      >
         <svg
-          width={size === "lg" ? 22 : 16}
-          height={size === "lg" ? 22 : 16}
+          width={large ? 22 : 16}
+          height={large ? 22 : 16}
           viewBox="0 0 20 20"
           fill="none"
           stroke="currentColor"
