@@ -43,8 +43,19 @@ const schema = z.object({
   PORTICO_GOOGLE_CLIENT_SECRET: z
     .string()
     .min(1, "required — the secret for that same Google OAuth client"),
-  /** Comma-separated Workspace domains. Empty/unset = any verified Google account. */
-  PORTICO_ALLOWED_DOMAINS: z.string().optional(),
+  /**
+   * Comma-separated Workspace domains allowed to sign in, or the literal `*` to
+   * allow any verified Google account.
+   *
+   * Required, and there is no default: this is the only thing standing between a
+   * deployment and "any Google account on earth gets a bearer token". An optional
+   * value that defaults to open means deleting one line of config silently opens
+   * the instance, and nothing — no lint, no test — would catch it. Making the open
+   * case say `*` out loud forces that to be a decision someone wrote down.
+   */
+  PORTICO_ALLOWED_DOMAINS: z
+    .string()
+    .min(1, 'required — a domain list like "okadoc.com", or "*" to allow any Google account'),
 
   // Artifacts: Azure Blob when an account is set, else the local filesystem.
   PORTICO_ARTIFACT_DIR: z.string().min(1).default(".data/artifacts"),

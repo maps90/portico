@@ -14,7 +14,12 @@ import { DomainForbiddenError } from "./errors.js";
  */
 export function isIdentityAllowed(claims: OidcClaims, allowedDomains: readonly string[]): boolean {
   if (!claims.emailVerified) return false;
-  if (allowedDomains.length === 0) return true;
+  // An EMPTY list denies everyone — it does not mean "allow all". Opening the
+  // instance to any Google account must be spelled `*`, so that it is a thing
+  // someone wrote, not a thing someone forgot. Config makes the value required, so
+  // an empty list here can only come from a caller passing one.
+  if (allowedDomains.length === 0) return false;
+  if (allowedDomains.some((d) => d === "*")) return true;
   if (claims.workspace === null) return false;
   const workspace = claims.workspace.toLowerCase();
   return allowedDomains.some((d) => d.toLowerCase() === workspace);
@@ -25,6 +30,9 @@ export function assertIdentityAllowed(claims: OidcClaims, allowedDomains: readon
   if (isIdentityAllowed(claims, allowedDomains)) return;
   if (!claims.emailVerified) {
     throw new DomainForbiddenError("identity has no verified email address");
+  }
+  if (allowedDomains.length === 0) {
+    throw new DomainForbiddenError("this portico instance allows no sign-in domains");
   }
   throw new DomainForbiddenError(
     `domain '${claims.workspace ?? "unknown"}' is not allowed on this portico instance`,

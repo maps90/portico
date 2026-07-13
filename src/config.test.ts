@@ -10,6 +10,7 @@ const valid: Record<string, string> = {
   PORTICO_SESSION_SECRET: "a-sufficiently-long-secret",
   PORTICO_GOOGLE_CLIENT_ID: "client",
   PORTICO_GOOGLE_CLIENT_SECRET: "secret",
+  PORTICO_ALLOWED_DOMAINS: "okadoc.com",
 };
 
 describe("loadConfig", () => {
@@ -19,7 +20,7 @@ describe("loadConfig", () => {
     expect(s.port).toBe(8080);
     expect(s.encryptionKey).toHaveLength(32);
     expect(s.google.clientId).toBe("client");
-    expect(s.allowedDomains).toEqual([]);
+    expect(s.allowedDomains).toEqual(["okadoc.com"]);
   });
 
   it("rejects an encryption key that is not 32 bytes", () => {
@@ -31,6 +32,19 @@ describe("loadConfig", () => {
   it("rejects a missing required field", () => {
     const { PORTICO_GOOGLE_CLIENT_ID: _omit, ...rest } = valid;
     expect(() => loadConfig(rest)).toThrow(/PORTICO_GOOGLE_CLIENT_ID/);
+  });
+
+  it("refuses to boot without an explicit access decision", () => {
+    // Fail closed: an absent allowlist must not quietly mean "any Google account".
+    const { PORTICO_ALLOWED_DOMAINS: _omit, ...rest } = valid;
+    expect(() => loadConfig(rest)).toThrow(/PORTICO_ALLOWED_DOMAINS/);
+    expect(() => loadConfig({ ...valid, PORTICO_ALLOWED_DOMAINS: "" })).toThrow(
+      /PORTICO_ALLOWED_DOMAINS/,
+    );
+  });
+
+  it("accepts '*' as the explicit open setting", () => {
+    expect(loadConfig({ ...valid, PORTICO_ALLOWED_DOMAINS: "*" }).allowedDomains).toEqual(["*"]);
   });
 
   it("splits, trims, and lower-cases the allowed domains", () => {

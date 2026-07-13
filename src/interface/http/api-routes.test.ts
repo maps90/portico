@@ -11,6 +11,7 @@ const env: Record<string, string> = {
   PORTICO_SESSION_SECRET: "test-session-secret-value",
   PORTICO_GOOGLE_CLIENT_ID: "cid",
   PORTICO_GOOGLE_CLIENT_SECRET: "sec",
+  PORTICO_ALLOWED_DOMAINS: "okadoc.com",
   // atlassian configured (linkable); github left unconfigured (unavailable)
   PORTICO_UPSTREAM_ATLASSIAN_CLIENT_ID: "atl-cid",
   PORTICO_UPSTREAM_ATLASSIAN_CLIENT_SECRET: "atl-sec",
