@@ -7,3 +7,6 @@ web/dist/
 .env.local
 .DS_Store
 coverage/
+
+# Claude Code worktrees — isolated checkouts, never part of a commit.
+.claude/worktrees/
