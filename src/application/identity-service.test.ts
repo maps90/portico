@@ -66,8 +66,8 @@ describe("IdentityService", () => {
     );
   });
 
-  it("accepts any verified account when no domains are configured", async () => {
-    const open = build({ ...okClaims, workspace: "gmail.com" }, []);
+  it("accepts any verified account only when explicitly opened with '*'", async () => {
+    const open = build({ ...okClaims, workspace: "gmail.com" }, ["*"]);
     const { user } = await open.service.completeLogin("code", "https://portico/cb");
     expect(user.id).toBeTruthy();
   });

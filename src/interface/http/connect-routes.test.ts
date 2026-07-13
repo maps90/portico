@@ -13,6 +13,7 @@ const env: Record<string, string> = {
   PORTICO_SESSION_SECRET: "test-session-secret-value",
   PORTICO_GOOGLE_CLIENT_ID: "cid",
   PORTICO_GOOGLE_CLIENT_SECRET: "sec",
+  PORTICO_ALLOWED_DOMAINS: "okadoc.com",
   PORTICO_ARTIFACT_BLOB_ACCOUNT: "acct",
   // configure the atlassian upstream so linking is allowed
   PORTICO_UPSTREAM_ATLASSIAN_CLIENT_ID: "atl-cid",

@@ -19,7 +19,11 @@ export function registerHealth(app: Express, pool: Pool | null): void {
       await pool.query("SELECT 1");
       res.status(200).json({ status: "ready", db: "ok" });
     } catch (err) {
-      res.status(503).json({ status: "unready", db: String(err) });
+      // The detail goes to the log, never to the response: a `pg` error string
+      // carries the database host, port, user and name, and this endpoint is
+      // reachable by anyone who can reach the pod.
+      console.error("readiness check failed", err);
+      res.status(503).json({ status: "unready", db: "error" });
     }
   });
 }
