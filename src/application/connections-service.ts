@@ -11,6 +11,21 @@ export interface ConnectionInfo {
   state: ConnectionState;
   /** Present when the service can be linked (state != connected). */
   connectUrl?: string;
+  /** What the token actually carries. Present once linked. */
+  grantedScopes?: string[];
+  /**
+   * Requested but not granted — present only when non-empty, because an empty
+   * list is the normal case and noise in every other reading.
+   *
+   * A provider grants only the scopes its app is configured for, and does so
+   * *silently*: the link still reads `connected`, because the OAuth handshake
+   * genuinely succeeded. What fails is every subsequent tool call, with whatever
+   * unhelpful message the provider chooses — Atlassian's is "We are having
+   * trouble completing this action. Please try again shortly.", which names
+   * neither the scope nor the tool. Portico held the answer the whole time and
+   * did not show it. Now it does.
+   */
+  missingScopes?: string[];
 }
 
 export interface ConnectionsDeps {
@@ -44,12 +59,16 @@ export class ConnectionsService {
       else state = "connected";
 
       const actionable = state === "not_connected" || state === "expired";
+      const granted = conn?.scopes ?? [];
+      const missing = entry.oauth.scopes.filter((s) => !granted.includes(s));
       return {
         id: entry.id,
         displayName: entry.displayName,
         toolPrefix: entry.toolPrefix,
         state,
         ...(actionable ? { connectUrl: this.connectUrl(entry.id) } : {}),
+        ...(conn ? { grantedScopes: granted } : {}),
+        ...(conn && missing.length ? { missingScopes: missing } : {}),
       };
     });
   }
