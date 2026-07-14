@@ -125,7 +125,12 @@ export function buildApp(deps: Dependencies): BuiltApp {
   registerHealth(app, pool);
   registerIdentityRoutes(app, { identity, sessions, settings });
   registerConnectRoutes(app, { linking, sessions, users: stores.users, settings });
-  registerArtifactRoutes(app, { artifacts, sessions, users: stores.users });
+  registerArtifactRoutes(app, {
+    artifacts,
+    sessions,
+    users: stores.users,
+    baseUrl: settings.baseUrl,
+  });
   registerApiRoutes(app, {
     identity,
     connections,

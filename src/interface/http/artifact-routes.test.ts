@@ -55,17 +55,59 @@ describe("artifact host (integration, in-memory)", () => {
     }
   };
 
-  it("publishes via the Portico tool and serves it to a logged-in browser with a strict CSP", async () => {
+  it("serves the shell at /visual/:id, framing the artifact in a script-only sandbox", async () => {
     const url = await publishViaMcp("<h1>Quarterly report</h1>");
     const path = new URL(url).pathname;
 
     const res = await fetch(`${origin}${path}`, { headers: { cookie }, redirect: "manual" });
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("text/html");
-    const csp = res.headers.get("content-security-policy")!;
-    expect(csp).toContain("default-src 'none'");
-    expect(csp).not.toContain("script-src");
+    const body = await res.text();
+    expect(body).toContain('sandbox="allow-scripts"');
+    expect(body).not.toContain("allow-same-origin");
+    expect(body).toContain(`src="${path}/raw"`);
+    // The shell is chrome, not content: the artifact body is not inlined into it.
+    expect(body).not.toContain("Quarterly report</h1>");
+    expect(res.headers.get("content-security-policy")).toContain("script-src 'none'");
+  });
+
+  it("serves the artifact bytes at /raw, with script allowed but no way to phone home", async () => {
+    const url = await publishViaMcp("<h1>Quarterly report</h1>");
+    const path = new URL(url).pathname;
+
+    const res = await fetch(`${origin}${path}/raw`, { headers: { cookie }, redirect: "manual" });
+    expect(res.status).toBe(200);
     expect(await res.text()).toContain("Quarterly report");
+
+    const csp = res.headers.get("content-security-policy")!;
+    expect(csp).toContain("script-src 'unsafe-inline' 'self'");
+    expect(csp).toContain("connect-src 'none'");
+    expect(csp).not.toContain("frame-ancestors 'none'");
+  });
+
+  it("gates /raw on its own — it is a real URL, not an internal detail", async () => {
+    const url = await publishViaMcp("<p>secret</p>");
+    const path = new URL(url).pathname;
+
+    const res = await fetch(`${origin}${path}/raw`, { redirect: "manual" }); // no cookie
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toContain("/login");
+  });
+
+  it("returns 404 for /raw once the artifact is revoked", async () => {
+    const url = await publishViaMcp("<p>temp</p>");
+    const id = new URL(url).pathname.split("/").pop()!;
+
+    const client = new Client({ name: "t", version: "0" });
+    const transport = new StreamableHTTPClientTransport(new URL(`${origin}/mcp`), {
+      requestInit: { headers: { Authorization: `Bearer ${token}` } },
+    });
+    await client.connect(transport);
+    await client.callTool({ name: "portico__revoke_artifact", arguments: { id } });
+    await client.close();
+
+    const res = await fetch(`${origin}/visual/${id}/raw`, { headers: { cookie }, redirect: "manual" });
+    expect(res.status).toBe(404);
   });
 
   it("redirects an unauthenticated viewer to login", async () => {
