@@ -50,7 +50,7 @@ reach the network, read a session cookie, or escape its frame.
 
 | Route | Serves | Trust |
 |---|---|---|
-| `GET /visual/:id` | Portico-owned **shell**: login gate, title, share/revoke bar, and the `<iframe>` | Trusted (portico origin) |
+| `GET /visual/:id` | Portico-owned **shell**: login gate, title, and the `<iframe>` | Trusted (portico origin) |
 | `GET /visual/:id/raw` | The stored artifact bytes, framed by the shell | **Untrusted (opaque origin)** |
 | `GET /vendor/<lib>-<version>.min.js` | Vendored ECharts + Mermaid, via `express.static` | Trusted, immutable |
 | `GET /a/:id` | `301` → `/visual/:id` | Keeps already-shared links working |
@@ -113,8 +113,15 @@ compile time:
    origin explicitly instead of relying on `'self'`. Derive it from `settings.baseUrl`.
    This must be confirmed in a real browser (see Testing).
 
-The shell page itself gets its own strict policy — `default-src 'none'; script-src
-'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-src 'self'`.
+The shell page itself carries **no JavaScript at all** — it is a title bar and an
+iframe — so its own policy can be maximally strict: `default-src 'none'; script-src
+'none'; style-src 'unsafe-inline'; img-src data:; frame-src 'self' <origin>;
+frame-ancestors 'none'`.
+
+Revoking stays an MCP tool (`portico__revoke_artifact`). Putting a revoke button in the
+shell would mean a new authenticated, state-mutating web endpoint with CSRF surface, and
+would force script back into the shell — a poor trade for a capability that already
+exists.
 
 ### Vendored libraries
 
