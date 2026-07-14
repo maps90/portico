@@ -10,9 +10,12 @@ A unified **MCP gateway** + **HTML artifact host**. One token, every service.
   service does not change your token.
 - **Portal** — a React page at `/`: your token, and a Connect/Disconnect button per
   service.
-- **Artifact host** — publish rich HTML (reports/dashboards) and get back a
-  login-gated URL. Bytes live on disk locally, in Azure Blob Storage in production;
-  only authenticated Portico users can view.
+- **Visual host** — publish rich HTML (reports, dashboards, charts, diagrams) and get back
+  a login-gated URL at `/visual/<id>`. **JavaScript runs**: ECharts and Mermaid are vendored
+  same-origin under `/vendor/`. The page is framed with `sandbox="allow-scripts"` on an
+  opaque origin and a CSP with `connect-src 'none'` and no external origin, so agent-authored
+  script can draw a chart but cannot reach the network, read a session cookie, or escape its
+  frame. Bytes live on disk locally, in Azure Blob Storage in production.
 
 ## Quick start
 
@@ -68,5 +71,6 @@ See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the layering,
 
 ## Status
 
-Feature-complete. The suite (91 tests) runs entirely on in-memory adapters —
-Postgres and Azure Blob back the same behaviour in production.
+Feature-complete. The default suite (118 tests) runs entirely on in-memory adapters — no
+database, no cloud, no credentials. `make test-e2e` additionally drives a real browser to
+verify the visual sandbox holds; it is the only test that needs one.

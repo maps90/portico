@@ -60,7 +60,7 @@ const VENDOR_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../../../ve
 /**
  * Composition root. Builds concrete adapters, injects them into application
  * services, and mounts the interface layer: health, identity (`/login`,
- * `/auth/google/callback`), upstream linking (`/connect/*`), artifacts (`/a/:id`),
+ * `/auth/google/callback`), upstream linking (`/connect/*`), visuals (`/visual/:id`),
  * the portal's `/api/*` surface, the portal itself, and the `/mcp` Streamable
  * HTTP endpoint.
  */

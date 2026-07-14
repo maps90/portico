@@ -16,6 +16,20 @@ the artifact host — all behind one bearer token.
   tools (`mcp__portico__atlassian__…`, `mcp__portico__gdrive__…`) plus the management
   and artifact tools (`mcp__portico__portico__*`).
 
+## Visuals
+
+Jean gets `portico__publish_html` for free through the portico plugin — no Jean code
+change. Ask Jean for a chart and it writes an HTML page against the vendored libraries,
+publishes it, and posts the `/visual/<id>` link into the thread.
+
+**One caveat worth knowing.** Jean authenticates with a single shared
+`PORTICO_ACCESS_TOKEN`, not a token per Slack user, so every visual Jean publishes is owned
+by one portico identity. `visibility: "private"` is therefore meaningless for Jean's
+visuals — it would mean "private to the bot" — and `portico__list_artifacts` shows the whole
+team's. Jean should publish with the default `visibility: "authenticated"`: any signed-in
+Portico user can view, which is what a Slack team wants anyway. Per-Slack-user tokens are
+separate, future work.
+
 ## Wiring it into Jean
 
 Jean builds its agent options in `src/jean/server.py::options_factory`. Add
