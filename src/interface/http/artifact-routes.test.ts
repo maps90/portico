@@ -100,4 +100,16 @@ describe("artifact host (integration, in-memory)", () => {
     expect(res.status).toBe(301);
     expect(res.headers.get("location")).toBe(`/visual/${id}`);
   });
+
+  it("serves vendored chart libraries publicly and immutably", async () => {
+    const res = await fetch(`${origin}/vendor/echarts-5.6.0.min.js`); // no cookie on purpose
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("javascript");
+    expect(res.headers.get("cache-control")).toContain("immutable");
+    await res.arrayBuffer();
+
+    const mermaid = await fetch(`${origin}/vendor/mermaid-11.4.1.min.js`);
+    expect(mermaid.status).toBe(200);
+    await mermaid.arrayBuffer();
+  });
 });

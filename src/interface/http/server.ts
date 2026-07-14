@@ -54,6 +54,9 @@ export interface BuiltApp {
 /** Built portal assets (`web/dist`), reached the same way from `src/` and `dist/`. */
 const WEB_DIST = resolve(dirname(fileURLToPath(import.meta.url)), "../../../web/dist");
 
+/** Vendored browser libs for published visuals. Resolved the same way from `src/` and `dist/`. */
+const VENDOR_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../../../vendor");
+
 /**
  * Composition root. Builds concrete adapters, injects them into application
  * services, and mounts the interface layer: health, identity (`/login`,
@@ -138,6 +141,20 @@ export function buildApp(deps: Dependencies): BuiltApp {
     artifacts,
     baseUrl: settings.baseUrl,
   });
+  // Vendored chart libraries for published visuals. Public on purpose: these are
+  // open-source bundles holding nothing secret, and gating them would couple asset
+  // loading to a session cookie reaching an opaque-origin iframe. Served from their own
+  // directory rather than `web/dist` so `make dev` — which never builds the portal —
+  // can still render a chart.
+  app.use(
+    "/vendor",
+    express.static(VENDOR_DIR, {
+      immutable: true,
+      maxAge: "1y",
+      index: false,
+      fallthrough: false,
+    }),
+  );
   registerPortal(app);
 
   return { app, stores, identity, connections, linking, proxy, artifacts, sessions };
