@@ -29,7 +29,31 @@ const SEEDS: Seed[] = [
     toolPrefix: "atlassian",
     authorizationUrl: "https://auth.atlassian.com/authorize",
     tokenUrl: "https://auth.atlassian.com/oauth/token",
-    scopes: ["read:jira-work", "write:jira-work", "read:confluence-content.all", "offline_access"],
+    // Listing tools needs no permission; invoking them does. Get this list wrong
+    // and Atlassian advertises all 40 tools, then fails every single call with
+    // "We are having trouble completing this action. Please try again shortly." --
+    // a message that names neither the scope nor the tool, and sends you looking
+    // for a transport bug or a rate limit that isn't there.
+    //
+    //   read:me      -- without it even `atlassianUserInfo` (no args, no cloudId)
+    //                   fails. Its absence is what made *every* call fail.
+    //   *:confluence -- granular. The classic `read:confluence-content.all` cannot
+    //                   be mixed with granular scopes; one classic entry poisons
+    //                   the grant.
+    //
+    // Atlassian documents this set nowhere -- not the support site, not the
+    // official repo -- so treat it as the best known set, and override via
+    // PORTICO_UPSTREAM_ATLASSIAN_SCOPES rather than editing and redeploying.
+    scopes: [
+      "read:me",
+      "read:jira-work",
+      "read:jira-user",
+      "write:jira-work",
+      "read:page:confluence",
+      "read:space:confluence",
+      "write:page:confluence",
+      "offline_access",
+    ],
     authorizeParams: { audience: "api.atlassian.com", prompt: "consent" },
   },
   {
@@ -56,6 +80,21 @@ const SEEDS: Seed[] = [
 const envKey = (id: string, suffix: string): string =>
   `PORTICO_UPSTREAM_${id.replace(/-/g, "_").toUpperCase()}_${suffix}`;
 
+/**
+ * `PORTICO_UPSTREAM_X_SCOPES` — space- or comma-separated, overriding the seed.
+ *
+ * An upstream's required scopes are the provider's business and are not always
+ * documented (Atlassian's MCP server enumerates its own nowhere), so finding the
+ * right set can take a round or two. Without this, each attempt is a code change,
+ * a build and a deploy. A blank value is an ops accident, not a request for zero
+ * scopes — fall back to the seed rather than ask for nothing, which is exactly the
+ * grant that makes every tool call fail.
+ */
+const scopesFrom = (raw: string | undefined, fallback: string[]): string[] => {
+  const parsed = (raw ?? "").split(/[\s,]+/).filter(Boolean);
+  return parsed.length > 0 ? parsed : fallback;
+};
+
 export function buildRegistry(env: Record<string, string | undefined>): Registry {
   const entries = new Map<string, UpstreamEntry>();
   for (const s of SEEDS) {
@@ -67,7 +106,7 @@ export function buildRegistry(env: Record<string, string | undefined>): Registry
       oauth: {
         authorizationUrl: s.authorizationUrl,
         tokenUrl: s.tokenUrl,
-        scopes: s.scopes,
+        scopes: scopesFrom(env[envKey(s.id, "SCOPES")], s.scopes),
         clientId: env[envKey(s.id, "CLIENT_ID")] ?? "",
         clientSecret: env[envKey(s.id, "CLIENT_SECRET")] ?? "",
         ...(s.authorizeParams ? { authorizeParams: s.authorizeParams } : {}),
