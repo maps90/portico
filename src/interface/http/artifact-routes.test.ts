@@ -85,6 +85,33 @@ describe("artifact host (integration, in-memory)", () => {
     expect(csp).not.toContain("frame-ancestors 'none'");
   });
 
+  it("bounces a top-level /raw navigation (Sec-Fetch-Dest: document) to the sandboxed shell", async () => {
+    const url = await publishViaMcp("<h1>Quarterly report</h1>");
+    const path = new URL(url).pathname;
+
+    const res = await fetch(`${origin}${path}/raw`, {
+      headers: { cookie, "Sec-Fetch-Dest": "document" },
+      redirect: "manual",
+    });
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe(path);
+    // It must NOT have served the untrusted bytes on the real origin.
+    expect(await res.text()).not.toContain("Quarterly report");
+  });
+
+  it("still serves /raw bytes for a framed request (Sec-Fetch-Dest: iframe)", async () => {
+    const url = await publishViaMcp("<h1>Quarterly report</h1>");
+    const path = new URL(url).pathname;
+
+    const res = await fetch(`${origin}${path}/raw`, {
+      headers: { cookie, "Sec-Fetch-Dest": "iframe" },
+      redirect: "manual",
+    });
+    expect(res.status).toBe(200);
+    expect(await res.text()).toContain("Quarterly report");
+    expect(res.headers.get("content-security-policy")).toContain("script-src 'unsafe-inline' 'self'");
+  });
+
   it("gates /raw on its own — it is a real URL, not an internal detail", async () => {
     const url = await publishViaMcp("<p>secret</p>");
     const path = new URL(url).pathname;

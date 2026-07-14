@@ -79,6 +79,15 @@ export function registerArtifactRoutes(app: Express, deps: ArtifactRouteDeps): v
 
   app.get("/visual/:id/raw", async (req: Request, res: Response) => {
     const id = (req.params as Record<string, string>).id ?? "";
+    // A top-level navigation to the bare artifact runs its inline script on portico's
+    // real origin (no iframe, no sandbox). Bounce it to the shell, which frames /raw in
+    // an opaque-origin sandbox. `Sec-Fetch-Dest` is browser-set and unforgeable by page
+    // JS; only `document` is a top-level document — iframe/nested-document/frame stay
+    // framed, and an absent header (curl, old browsers) falls through to serve as before.
+    if (req.get("sec-fetch-dest") === "document") {
+      res.redirect(`/visual/${encodeURIComponent(id)}`);
+      return;
+    }
     const user = await currentUser(req, sessions, users);
     if (!user) {
       // To the shell, not back to /raw: a bare artifact document is not a destination
