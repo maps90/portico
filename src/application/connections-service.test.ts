@@ -91,3 +91,74 @@ describe("ConnectionsService", () => {
     expect(await vault.get(user.id, "atlassian")).toBeNull();
   });
 });
+
+describe("granted scopes", () => {
+  const withScopes = (requested: string[]): Registry =>
+    new Registry(
+      new Map([
+        [
+          "atlassian",
+          {
+            id: "atlassian",
+            displayName: "Atlassian",
+            mcpUrl: "https://mcp.example/",
+            toolPrefix: "atlassian",
+            oauth: {
+              authorizationUrl: "https://idp/authorize",
+              tokenUrl: "https://idp/token",
+              scopes: requested,
+              clientId: "cid",
+              clientSecret: "sec",
+            },
+          } satisfies UpstreamEntry,
+        ],
+      ]),
+    );
+
+  const linked = async (vault: InMemoryConnectionVault, granted: string[]) =>
+    vault.put({
+      userId: user.id,
+      upstreamId: "atlassian",
+      accessToken: "at",
+      refreshToken: "rt",
+      expiresAt: new Date(Date.now() + 3_600_000),
+      scopes: granted,
+      status: "active",
+    });
+
+  it("names the scopes the token is actually missing", async () => {
+    // The diagnostic that was not there. Atlassian grants only the scopes the app
+    // is configured for -- silently -- and then answers every tool call with
+    // "We are having trouble completing this action. Please try again shortly.",
+    // which names neither the scope nor the tool. The connection reads "connected"
+    // throughout, because the OAuth link IS fine; it is the grant that is short.
+    // Portico knew the granted scopes the whole time and told nobody.
+    const vault = new InMemoryConnectionVault();
+    const svc = new ConnectionsService({
+      registry: withScopes(["read:me", "read:jira-work", "offline_access"]),
+      vault,
+      baseUrl: "https://portico.okadoc.com",
+    });
+    await linked(vault, ["read:jira-work", "offline_access"]);
+
+    const atl = (await svc.list(user)).find((c) => c.id === "atlassian")!;
+
+    expect(atl.state).toBe("connected");
+    expect(atl.grantedScopes).toEqual(["read:jira-work", "offline_access"]);
+    expect(atl.missingScopes).toEqual(["read:me"]);
+  });
+
+  it("says nothing about scopes when the grant is complete", async () => {
+    const vault = new InMemoryConnectionVault();
+    const svc = new ConnectionsService({
+      registry: withScopes(["read:me", "offline_access"]),
+      vault,
+      baseUrl: "https://portico.okadoc.com",
+    });
+    await linked(vault, ["offline_access", "read:me"]); // order must not matter
+
+    const atl = (await svc.list(user)).find((c) => c.id === "atlassian")!;
+
+    expect(atl.missingScopes).toBeUndefined();
+  });
+});

@@ -31,7 +31,8 @@ on Jira. `make` on its own lists every target.
 |---|---|
 | `PORTICO_GOOGLE_CLIENT_ID` / `_SECRET` | Google Cloud Console → Credentials → OAuth client ID (Web application). Redirect URI: `http://localhost:8080/auth/google/callback` |
 | `PORTICO_ALLOWED_DOMAINS` | Workspace domains allowed to sign in (e.g. `okadoc.com`). **Empty means any Google account** — fine on localhost, set it in production. |
-| `PORTICO_UPSTREAM_ATLASSIAN_CLIENT_ID` / `_SECRET` | developer.atlassian.com → OAuth 2.0 (3LO). Callback: `http://localhost:8080/connect/atlassian/callback` |
+| `PORTICO_UPSTREAM_ATLASSIAN_CLIENT_ID` / `_SECRET` | developer.atlassian.com → OAuth 2.0 (3LO). Callback: `http://localhost:8080/connect/atlassian/callback`. **Enable on the app's Permissions tab every scope Portico requests** — Atlassian grants only what the app is configured for, and does so silently. |
+| `PORTICO_UPSTREAM_ATLASSIAN_SCOPES` | Optional override (space/comma separated). Atlassian documents the scope set its MCP server needs nowhere, so this exists to let you iterate without a redeploy. |
 
 `make setup` generates `PORTICO_ENCRYPTION_KEY` and `PORTICO_SESSION_SECRET` for you.
 Other upstreams (GitHub, Google Drive) follow the same `PORTICO_UPSTREAM_<ID>_*`
