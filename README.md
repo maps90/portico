@@ -14,8 +14,9 @@ A unified **MCP gateway** + **HTML artifact host**. One token, every service.
   a login-gated URL at `/visual/<id>`. **JavaScript runs**: ECharts and Mermaid are vendored
   same-origin under `/vendor/`. The page is framed with `sandbox="allow-scripts"` on an
   opaque origin and a CSP with `connect-src 'none'` and no external origin, so agent-authored
-  script can draw a chart but cannot reach the network, read a session cookie, or escape its
-  frame. Bytes live on disk locally, in Azure Blob Storage in production.
+  script can draw a chart but cannot read your session cookie, see the parent page, or fetch
+  from the network — a malicious page could at most leak data it already contains, never
+  anything of yours. Bytes live on disk locally, in Azure Blob Storage in production.
 
 ## Quick start
 

@@ -92,7 +92,10 @@ GET carrying stolen data, so *any* permitted external origin is an exfiltration 
 matter how tight `connect-src` is. That is why CDNs are banned outright rather than
 allowlisted, and why ECharts and Mermaid are vendored same-origin under `/vendor/` at
 version-pinned, immutable paths: a visual hard-codes the path it was written against, so
-those bytes are never replaced, only added to. Script runs; nothing leaves.
+those bytes are never replaced, only added to. Script runs, but it is boxed in: it cannot
+fetch, open a socket, read the session cookie, reach the parent page, or see another
+artifact — the most a hostile artifact can leak is data it already embedded in itself, by
+navigating its own opaque frame; never a viewer's secret.
 
 Both routes are session-gated and both run the full visibility check. `/raw` is a URL a
 person can paste into a browser, so it defends itself rather than trusting the shell to
