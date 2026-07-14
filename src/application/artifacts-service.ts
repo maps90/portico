@@ -33,7 +33,7 @@ export class ArtifactsService {
   constructor(private readonly deps: ArtifactsDeps) {}
 
   url(id: string): string {
-    return `${this.deps.baseUrl}/a/${id}`;
+    return `${this.deps.baseUrl}/visual/${id}`;
   }
 
   async publish(user: User, input: PublishInput): Promise<{ id: string; url: string }> {
@@ -57,14 +57,20 @@ export class ArtifactsService {
     return { id, url: this.url(id) };
   }
 
-  /** Returns the HTML bytes + metadata, enforcing visibility. Throws otherwise. */
-  async view(viewerUserId: string, id: string): Promise<{ html: Buffer; meta: ArtifactMeta }> {
+  /** Resolves metadata, enforcing visibility/revocation/expiry. Throws otherwise. */
+  async viewMeta(viewerUserId: string, id: string): Promise<ArtifactMeta> {
     const meta = await this.deps.meta.get(id);
     if (!meta || meta.revokedAt) throw new ArtifactNotFoundError();
     if (meta.expiresAt && meta.expiresAt.getTime() <= Date.now()) throw new ArtifactNotFoundError();
     if (meta.visibility === "private" && meta.ownerUserId !== viewerUserId) {
       throw new ArtifactForbiddenError();
     }
+    return meta;
+  }
+
+  /** Returns the HTML bytes + metadata, enforcing visibility. Throws otherwise. */
+  async view(viewerUserId: string, id: string): Promise<{ html: Buffer; meta: ArtifactMeta }> {
+    const meta = await this.viewMeta(viewerUserId, id);
     const html = await this.deps.store.get(meta.storageRef);
     if (!html) throw new ArtifactNotFoundError();
     return { html, meta };

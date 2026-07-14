@@ -11,7 +11,7 @@ export interface AzureBlobConfig {
 /**
  * ArtifactStore over Azure Blob Storage. Uses a connection string when provided,
  * otherwise DefaultAzureCredential (managed identity in AKS/Container Apps). The
- * container is private; bytes are streamed to viewers by the `/a/:id` route, so
+ * container is private; bytes are streamed to viewers by the `/visual/:id` route, so
  * no public/presigned access is ever granted.
  */
 export class AzureBlobArtifactStore implements ArtifactStore {

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ArtifactsService } from "./artifacts-service.js";
 import { InMemoryArtifactStore } from "../adapters/memory/artifact-store.js";
 import { InMemoryArtifactMetaStore } from "../adapters/memory/artifact-meta-store.js";
@@ -21,10 +21,14 @@ describe("ArtifactsService", () => {
 
   it("publishes and returns a viewable URL, storing the bytes", async () => {
     const { id, url } = await svc.publish(owner, { html: "<h1>Report</h1>", title: "Q3" });
-    expect(url).toBe(`https://portico.okadoc.com/a/${id}`);
+    expect(url).toBe(`https://portico.okadoc.com/visual/${id}`);
     const { html, meta: m } = await svc.view(owner.id, id);
     expect(html.toString("utf8")).toBe("<h1>Report</h1>");
     expect(m.title).toBe("Q3");
+  });
+
+  it("builds visual URLs under /visual/:id", () => {
+    expect(svc.url("abc-123")).toBe("https://portico.okadoc.com/visual/abc-123");
   });
 
   it("lets any authenticated user view an 'authenticated' artifact", async () => {
@@ -61,5 +65,27 @@ describe("ArtifactsService", () => {
     await svc.publish(other, { html: "<p>b</p>" });
     const list = await svc.list(owner);
     expect(list).toHaveLength(1);
+  });
+
+  it("viewMeta enforces the same rules as view, without touching blob storage", async () => {
+    const { id } = await svc.publish(owner, {
+      html: "<p>x</p>",
+      title: "Chart",
+      visibility: "private",
+    });
+
+    const spy = vi.spyOn(store, "get");
+
+    const got = await svc.viewMeta(owner.id, id);
+    expect(got.title).toBe("Chart");
+
+    await expect(svc.viewMeta(other.id, id)).rejects.toBeInstanceOf(ArtifactForbiddenError);
+    await expect(svc.viewMeta(owner.id, "nope")).rejects.toBeInstanceOf(ArtifactNotFoundError);
+
+    await svc.revoke(owner, id);
+    await expect(svc.viewMeta(owner.id, id)).rejects.toBeInstanceOf(ArtifactNotFoundError);
+
+    // The point of viewMeta: it resolves metadata only, never pulls bytes from blob storage.
+    expect(spy).not.toHaveBeenCalled();
   });
 });

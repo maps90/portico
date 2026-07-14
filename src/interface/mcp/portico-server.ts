@@ -77,7 +77,17 @@ function porticoTools(deps: PorticoServerDeps): PorticoTool[] {
       def: {
         name: "portico__publish_html",
         description:
-          "Publish an HTML document (report/dashboard) and get back a login-gated URL to share (e.g. post into a Slack thread). Only authenticated Portico users can open it.",
+          "Publish an HTML document (report, dashboard, chart, diagram) and get back a " +
+          "login-gated URL to share — e.g. post it into a Slack thread. Only authenticated " +
+          "Portico users can open it.\n" +
+          "JavaScript RUNS, inside a sandboxed frame. Charting libraries are vendored and " +
+          "MUST be loaded from these exact same-origin paths:\n" +
+          '  <script src="/vendor/echarts-5.6.0.min.js"></script>   (global: echarts)\n' +
+          '  <script src="/vendor/mermaid-11.4.1.min.js"></script>  (global: mermaid)\n' +
+          "The page cannot reach the network at all. These FAIL SILENTLY — a blank page, no " +
+          "error: any CDN or external <script src>, any fetch/XHR/WebSocket, any remote image " +
+          "or font. Inline <script> and inline <style> are fine; embed data as a literal in the " +
+          "page, and inline images as data: URIs.",
         inputSchema: {
           type: "object",
           properties: {
