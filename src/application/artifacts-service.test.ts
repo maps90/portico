@@ -66,4 +66,21 @@ describe("ArtifactsService", () => {
     const list = await svc.list(owner);
     expect(list).toHaveLength(1);
   });
+
+  it("viewMeta enforces the same rules as view, without touching blob storage", async () => {
+    const { id } = await svc.publish(owner, {
+      html: "<p>x</p>",
+      title: "Chart",
+      visibility: "private",
+    });
+
+    const got = await svc.viewMeta(owner.id, id);
+    expect(got.title).toBe("Chart");
+
+    await expect(svc.viewMeta(other.id, id)).rejects.toBeInstanceOf(ArtifactForbiddenError);
+    await expect(svc.viewMeta(owner.id, "nope")).rejects.toBeInstanceOf(ArtifactNotFoundError);
+
+    await svc.revoke(owner, id);
+    await expect(svc.viewMeta(owner.id, id)).rejects.toBeInstanceOf(ArtifactNotFoundError);
+  });
 });
