@@ -28,6 +28,10 @@ COPY package.json ./
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/web/dist ./web/dist
+# Vendored chart libraries (ECharts/Mermaid) served at /vendor. Committed bytes, not
+# a build artifact, so they are copied straight from the context — server.js resolves
+# them at ../../../vendor (i.e. /app/vendor), so they must land beside dist/.
+COPY vendor ./vendor
 EXPOSE 8080
 USER node
 CMD ["node", "dist/main.js"]
