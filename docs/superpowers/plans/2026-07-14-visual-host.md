@@ -25,7 +25,7 @@ nothing leaves.
 - `type: "module"` — all relative imports carry the `.js` extension, even from `.ts`.
 - Node >= 20. TypeScript strict; `exactOptionalPropertyTypes` is on (note the
   `...(x ? { k: x } : {})` spread idiom used throughout the codebase for optional fields).
-- `npm run check` (typecheck + test) must pass before every commit.
+- `make check` (typecheck + test) must pass before every commit.
 - The default test suite stays DB-free and network-free. Playwright is a **separate**
   command (`npm run test:e2e`), never folded into `npm test`.
 - **Invariant, never violate:** the artifact iframe gets `sandbox="allow-scripts"` and
@@ -125,7 +125,7 @@ its path string:
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `npm run check`
+Run: `make check`
 Expected: PASS. The pre-existing artifact tests still pass because `publishViaMcp` reads
 the URL out of the tool result, which now points at `/visual/:id`.
 
@@ -211,7 +211,7 @@ In `src/application/artifacts-service.ts`, replace the existing `view` method wi
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `npm run check`
+Run: `make check`
 Expected: PASS — including the pre-existing `view()` tests, which are unchanged in behaviour.
 
 - [ ] **Step 5: Commit**
@@ -342,7 +342,7 @@ and inside `buildApp`, in the `// --- interface ---` block **before** `registerP
 
 - [ ] **Step 5: Run the tests to verify they pass**
 
-Run: `npm run check`
+Run: `make check`
 Expected: PASS.
 
 - [ ] **Step 6: Commit**
@@ -696,7 +696,7 @@ In `src/interface/http/server.ts`, pass the origin through:
 
 - [ ] **Step 8: Run the full gate**
 
-Run: `npm run check`
+Run: `make check`
 Expected: PASS.
 
 - [ ] **Step 9: Commit**
@@ -773,7 +773,7 @@ In `src/interface/mcp/portico-server.ts`, in the `portico__publish_html` tool de
 
 - [ ] **Step 4: Run to verify it passes**
 
-Run: `npm run check`
+Run: `make check`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
