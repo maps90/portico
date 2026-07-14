@@ -35,23 +35,28 @@ const SEEDS: Seed[] = [
     // a message that names neither the scope nor the tool, and sends you looking
     // for a transport bug or a rate limit that isn't there.
     //
-    //   read:me      -- without it even `atlassianUserInfo` (no args, no cloudId)
-    //                   fails. Its absence is what made *every* call fail.
-    //   *:confluence -- granular. The classic `read:confluence-content.all` cannot
-    //                   be mixed with granular scopes; one classic entry poisons
-    //                   the grant.
+    // `read:me` is the one that was missing, and it is why *every* call failed,
+    // not just the Jira ones: even `atlassianUserInfo` -- no arguments, no cloudId
+    // -- is refused without it. Note it is NOT a Jira or Confluence scope. It lives
+    // under a separate "User identity API" that must be added to the app on
+    // developer.atlassian.com, which is exactly why it is easy to miss.
     //
-    // Atlassian documents this set nowhere -- not the support site, not the
-    // official repo -- so treat it as the best known set, and override via
-    // PORTICO_UPSTREAM_ATLASSIAN_SCOPES rather than editing and redeploying.
+    // The Confluence scopes here are Atlassian's *classic* set. Granular ones
+    // (read:page:confluence, ...) are not offered on a classic app, and an app
+    // cannot mix the two dialects -- so do not "upgrade" one of these in isolation.
+    //
+    // Atlassian documents the set its MCP server requires nowhere -- not the
+    // support site, not the official repo -- so treat this as the best known set
+    // and override with PORTICO_UPSTREAM_ATLASSIAN_SCOPES rather than redeploying.
     scopes: [
       "read:me",
       "read:jira-work",
       "read:jira-user",
       "write:jira-work",
-      "read:page:confluence",
-      "read:space:confluence",
-      "write:page:confluence",
+      "read:confluence-content.all",
+      "read:confluence-space.summary",
+      "write:confluence-content",
+      "search:confluence",
       "offline_access",
     ],
     authorizeParams: { audience: "api.atlassian.com", prompt: "consent" },

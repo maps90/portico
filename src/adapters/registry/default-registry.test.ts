@@ -19,14 +19,15 @@ describe("atlassian scopes", () => {
     expect(atlassian().oauth.scopes).toContain("offline_access");
   });
 
-  it("uses granular Confluence scopes, not the classic catch-all", () => {
-    // `read:confluence-content.all` is a classic scope. Atlassian's newer APIs use
-    // granular ones, and an app cannot mix the two dialects -- one classic entry
-    // poisons the whole grant.
+  it("stays on one Confluence scope dialect -- classic, all of it", () => {
+    // Classic, because that is what a classic app is offered: granular scopes
+    // (read:page:confluence, ...) do not appear on developer.atlassian.com for
+    // this app at all. An app cannot mix the two dialects, so a lone granular
+    // entry here would be a scope nobody can grant.
     const { scopes } = atlassian().oauth;
-    expect(scopes).not.toContain("read:confluence-content.all");
-    expect(scopes).toContain("read:page:confluence");
-    expect(scopes).toContain("read:space:confluence");
+    expect(scopes).toContain("read:confluence-content.all");
+    expect(scopes).toContain("write:confluence-content");
+    expect(scopes.filter((s) => s.endsWith(":confluence") && s.includes(":page"))).toEqual([]);
   });
 
   it("can read and write Jira work", () => {
