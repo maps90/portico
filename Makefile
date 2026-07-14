@@ -116,6 +116,11 @@ test-watch: ## Re-run tests on change
 test-pg: up ## Run the suite against the docker Postgres
 	PORTICO_TEST_DATABASE_URL=$(DB_URL) npm test
 
+.PHONY: test-e2e
+test-e2e: ## Browser tests: the sandbox + CSP boundary (needs chromium)
+	npx playwright install --with-deps chromium
+	npm run test:e2e
+
 .PHONY: typecheck
 typecheck: ## Typecheck the API and the portal
 	npm run typecheck

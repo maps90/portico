@@ -8,5 +8,9 @@ web/dist/
 .DS_Store
 coverage/
 
+# Playwright browser-test output
+test-results/
+playwright-report/
+
 # Claude Code worktrees — isolated checkouts, never part of a commit.
 .claude/worktrees/

@@ -33,6 +33,12 @@ jobs:
       - name: Test
         run: npm test
 
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser boundary tests
+        run: npm run test:e2e
+
       - name: Build (tsc + vite)
         run: npm run build
 
