@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ArtifactsService } from "./artifacts-service.js";
 import { InMemoryArtifactStore } from "../adapters/memory/artifact-store.js";
 import { InMemoryArtifactMetaStore } from "../adapters/memory/artifact-meta-store.js";
@@ -74,6 +74,8 @@ describe("ArtifactsService", () => {
       visibility: "private",
     });
 
+    const spy = vi.spyOn(store, "get");
+
     const got = await svc.viewMeta(owner.id, id);
     expect(got.title).toBe("Chart");
 
@@ -82,5 +84,8 @@ describe("ArtifactsService", () => {
 
     await svc.revoke(owner, id);
     await expect(svc.viewMeta(owner.id, id)).rejects.toBeInstanceOf(ArtifactNotFoundError);
+
+    // The point of viewMeta: it resolves metadata only, never pulls bytes from blob storage.
+    expect(spy).not.toHaveBeenCalled();
   });
 });
