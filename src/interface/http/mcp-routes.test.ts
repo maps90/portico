@@ -129,4 +129,21 @@ describe("/mcp endpoint (integration, in-memory)", () => {
       await client.close();
     }
   });
+
+  it("tells the agent how to write a visual that will actually render", async () => {
+    const client = await connect(token);
+    try {
+      const { tools } = await client.listTools();
+      const publish = tools.find((t) => t.name === "portico__publish_html")!;
+      const d = publish.description!;
+
+      // The exact vendored paths — an agent cannot guess these.
+      expect(d).toContain("/vendor/echarts-5.6.0.min.js");
+      expect(d).toContain("/vendor/mermaid-11.4.1.min.js");
+      // The failure mode that is silent, and therefore the one worth spelling out.
+      expect(d).toMatch(/CDN|external/i);
+    } finally {
+      await client.close();
+    }
+  });
 });
