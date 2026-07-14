@@ -21,10 +21,14 @@ describe("ArtifactsService", () => {
 
   it("publishes and returns a viewable URL, storing the bytes", async () => {
     const { id, url } = await svc.publish(owner, { html: "<h1>Report</h1>", title: "Q3" });
-    expect(url).toBe(`https://portico.okadoc.com/a/${id}`);
+    expect(url).toBe(`https://portico.okadoc.com/visual/${id}`);
     const { html, meta: m } = await svc.view(owner.id, id);
     expect(html.toString("utf8")).toBe("<h1>Report</h1>");
     expect(m.title).toBe("Q3");
+  });
+
+  it("builds visual URLs under /visual/:id", () => {
+    expect(svc.url("abc-123")).toBe("https://portico.okadoc.com/visual/abc-123");
   });
 
   it("lets any authenticated user view an 'authenticated' artifact", async () => {

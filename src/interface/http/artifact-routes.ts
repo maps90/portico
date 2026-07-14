@@ -21,15 +21,21 @@ export interface ArtifactRouteDeps {
   users: UserStore;
 }
 
-/** `GET /a/:id` — OIDC-session-gated artifact viewer streaming bytes from blob. */
+/** `GET /visual/:id` — OIDC-session-gated artifact viewer streaming bytes from blob. */
 export function registerArtifactRoutes(app: Express, deps: ArtifactRouteDeps): void {
   const { artifacts, sessions, users } = deps;
 
-  app.get("/a/:id", async (req: Request, res: Response) => {
+  // Legacy artifact links, shared before the visual host existed, keep working.
+  app.get("/a/:id", (req: Request, res: Response) => {
+    const id = (req.params as Record<string, string>).id ?? "";
+    res.redirect(301, `/visual/${encodeURIComponent(id)}`);
+  });
+
+  app.get("/visual/:id", async (req: Request, res: Response) => {
     const id = (req.params as Record<string, string>).id ?? "";
     const user = await currentUser(req, sessions, users);
     if (!user) {
-      res.redirect(`/login?next=${encodeURIComponent(`/a/${id}`)}`);
+      res.redirect(`/login?next=${encodeURIComponent(`/visual/${id}`)}`);
       return;
     }
     try {

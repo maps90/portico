@@ -33,7 +33,7 @@ export class ArtifactsService {
   constructor(private readonly deps: ArtifactsDeps) {}
 
   url(id: string): string {
-    return `${this.deps.baseUrl}/a/${id}`;
+    return `${this.deps.baseUrl}/visual/${id}`;
   }
 
   async publish(user: User, input: PublishInput): Promise<{ id: string; url: string }> {

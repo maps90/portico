@@ -88,7 +88,16 @@ describe("artifact host (integration, in-memory)", () => {
     await client.callTool({ name: "portico__revoke_artifact", arguments: { id } });
     await client.close();
 
-    const res = await fetch(`${origin}/a/${id}`, { headers: { cookie }, redirect: "manual" });
+    const res = await fetch(`${origin}/visual/${id}`, { headers: { cookie }, redirect: "manual" });
     expect(res.status).toBe(404);
+  });
+
+  it("permanently redirects the legacy /a/:id link to /visual/:id", async () => {
+    const url = await publishViaMcp("<p>legacy</p>");
+    const id = new URL(url).pathname.split("/").pop()!;
+
+    const res = await fetch(`${origin}/a/${id}`, { headers: { cookie }, redirect: "manual" });
+    expect(res.status).toBe(301);
+    expect(res.headers.get("location")).toBe(`/visual/${id}`);
   });
 });
