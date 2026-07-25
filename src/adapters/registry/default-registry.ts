@@ -15,6 +15,7 @@ interface Seed {
   displayName: string;
   defaultMcpUrl: string;
   toolPrefix: string;
+  kind: "proxied" | "builtin";
   authorizationUrl: string;
   tokenUrl: string;
   scopes: string[];
@@ -27,6 +28,7 @@ const SEEDS: Seed[] = [
     displayName: "Atlassian (Jira & Confluence)",
     defaultMcpUrl: "https://mcp.atlassian.com/v1/sse",
     toolPrefix: "atlassian",
+    kind: "proxied",
     authorizationUrl: "https://auth.atlassian.com/authorize",
     tokenUrl: "https://auth.atlassian.com/oauth/token",
     // Listing tools needs no permission; invoking them does. Get this list wrong
@@ -66,6 +68,7 @@ const SEEDS: Seed[] = [
     displayName: "Google Drive",
     defaultMcpUrl: "",
     toolPrefix: "gdrive",
+    kind: "proxied",
     authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth",
     tokenUrl: "https://oauth2.googleapis.com/token",
     scopes: ["https://www.googleapis.com/auth/drive.readonly", "openid", "email"],
@@ -76,9 +79,26 @@ const SEEDS: Seed[] = [
     displayName: "GitHub",
     defaultMcpUrl: "https://api.githubcopilot.com/mcp/",
     toolPrefix: "github",
+    kind: "proxied",
     authorizationUrl: "https://github.com/login/oauth/authorize",
     tokenUrl: "https://github.com/login/oauth/access_token",
     scopes: ["repo", "read:org"],
+  },
+  {
+    id: "google-docs",
+    displayName: "Google Docs",
+    kind: "builtin",
+    defaultMcpUrl: "",
+    toolPrefix: "gdocs",
+    authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth",
+    tokenUrl: "https://oauth2.googleapis.com/token",
+    scopes: [
+      "https://www.googleapis.com/auth/documents",
+      "https://www.googleapis.com/auth/drive.file",
+      "openid",
+      "email",
+    ],
+    authorizeParams: { access_type: "offline", prompt: "consent" },
   },
 ];
 
@@ -108,6 +128,7 @@ export function buildRegistry(env: Record<string, string | undefined>): Registry
       displayName: s.displayName,
       mcpUrl: env[envKey(s.id, "MCP_URL")] ?? s.defaultMcpUrl,
       toolPrefix: s.toolPrefix,
+      kind: s.kind,
       oauth: {
         authorizationUrl: s.authorizationUrl,
         tokenUrl: s.tokenUrl,

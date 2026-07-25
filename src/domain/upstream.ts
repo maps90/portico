@@ -19,6 +19,8 @@ export interface UpstreamEntry {
   mcpUrl: string;
   /** Tool-name prefix, e.g. `gdrive` → `gdrive__search_files`. */
   toolPrefix: string;
+  /** "proxied" = forward to a remote MCP (`mcpUrl`); "builtin" = tools implemented in-process. */
+  kind: "proxied" | "builtin";
   oauth: UpstreamOAuth;
 }
 
@@ -41,13 +43,13 @@ export class Registry {
   /** True when OAuth client creds + endpoints are present, so linking can run. */
   isConfigured(id: string): boolean {
     const e = this.entries.get(id);
-    return (
-      !!e &&
+    if (!e) return false;
+    const credsOk =
       e.oauth.clientId !== "" &&
       e.oauth.clientSecret !== "" &&
-      e.mcpUrl !== "" &&
       e.oauth.authorizationUrl !== "" &&
-      e.oauth.tokenUrl !== ""
-    );
+      e.oauth.tokenUrl !== "";
+    if (!credsOk) return false;
+    return e.kind === "builtin" ? true : e.mcpUrl !== "";
   }
 }
