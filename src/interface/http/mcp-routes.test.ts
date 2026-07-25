@@ -123,7 +123,7 @@ describe("/mcp endpoint (integration, in-memory)", () => {
       const parsed = JSON.parse(content[0]!.text) as Array<{ id: string }>;
       const ids = parsed.map((c) => c.id);
       expect(ids).toContain("atlassian");
-      expect(ids).toContain("google-drive");
+      expect(ids).toContain("google-docs");
       expect(ids).toContain("github");
     } finally {
       await client.close();

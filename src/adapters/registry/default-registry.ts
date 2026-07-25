@@ -64,17 +64,6 @@ const SEEDS: Seed[] = [
     authorizeParams: { audience: "api.atlassian.com", prompt: "consent" },
   },
   {
-    id: "google-drive",
-    displayName: "Google Drive",
-    defaultMcpUrl: "",
-    toolPrefix: "gdrive",
-    kind: "proxied",
-    authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth",
-    tokenUrl: "https://oauth2.googleapis.com/token",
-    scopes: ["https://www.googleapis.com/auth/drive.readonly", "openid", "email"],
-    authorizeParams: { access_type: "offline", prompt: "consent" },
-  },
-  {
     id: "github",
     displayName: "GitHub",
     defaultMcpUrl: "https://api.githubcopilot.com/mcp/",
