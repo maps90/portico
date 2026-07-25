@@ -16,6 +16,7 @@ const configured: UpstreamEntry = {
   displayName: "Atlassian",
   mcpUrl: "https://mcp.atlassian.com/",
   toolPrefix: "atlassian",
+  kind: "proxied",
   oauth: {
     authorizationUrl: "https://auth.atlassian.com/authorize",
     tokenUrl: "https://auth.atlassian.com/oauth/token",
@@ -28,6 +29,7 @@ const unconfigured: UpstreamEntry = {
   ...configured,
   id: "github",
   toolPrefix: "github",
+  kind: "proxied",
   oauth: { ...configured.oauth, clientId: "", clientSecret: "" },
 };
 

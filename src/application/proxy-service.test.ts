@@ -13,6 +13,7 @@ const entry = (id: string, prefix: string): UpstreamEntry => ({
   displayName: id,
   mcpUrl: `https://mcp/${id}`,
   toolPrefix: prefix,
+  kind: "proxied",
   oauth: { authorizationUrl: "a", tokenUrl: "t", scopes: [], clientId: "c", clientSecret: "s" },
 });
 

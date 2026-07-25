@@ -10,6 +10,7 @@ const entry: UpstreamEntry = {
   displayName: "Atlassian",
   mcpUrl: "https://mcp/",
   toolPrefix: "atlassian",
+  kind: "proxied",
   oauth: { authorizationUrl: "a", tokenUrl: "t", scopes: [], clientId: "c", clientSecret: "s" },
 };
 

@@ -9,6 +9,7 @@ const entry = (id: string, configured: boolean): UpstreamEntry => ({
   displayName: id,
   mcpUrl: configured ? "https://mcp.example/" : "",
   toolPrefix: id,
+  kind: "proxied",
   oauth: {
     authorizationUrl: configured ? "https://idp/authorize" : "",
     tokenUrl: configured ? "https://idp/token" : "",
@@ -103,6 +104,7 @@ describe("granted scopes", () => {
             displayName: "Atlassian",
             mcpUrl: "https://mcp.example/",
             toolPrefix: "atlassian",
+            kind: "proxied",
             oauth: {
               authorizationUrl: "https://idp/authorize",
               tokenUrl: "https://idp/token",
