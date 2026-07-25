@@ -13,6 +13,7 @@ import { buildRegistry } from "../../adapters/registry/default-registry.js";
 import { SessionCodec } from "../../adapters/session/cookie.js";
 import { FetchUpstreamOAuthClient } from "../../adapters/upstream/oauth-client.js";
 import { McpUpstreamGateway } from "../../adapters/upstream/mcp-gateway.js";
+import { jiraProvider } from "../../adapters/builtin/jira/index.js";
 import { IdentityService } from "../../application/identity-service.js";
 import { ConnectionsService } from "../../application/connections-service.js";
 import { LinkingService } from "../../application/linking-service.js";
@@ -118,7 +119,7 @@ export function buildApp(deps: Dependencies): BuiltApp {
     baseUrl: settings.baseUrl,
   });
   const builtin = new BuiltinToolsService({
-    providers: [],
+    providers: [jiraProvider],
     access,
     makeHttp: (token) => bearerRestClient(token),
     baseUrl: settings.baseUrl,
