@@ -18,6 +18,8 @@ import { ConnectionsService } from "../../application/connections-service.js";
 import { LinkingService } from "../../application/linking-service.js";
 import { AccessTokenProvider } from "../../application/access.js";
 import { ProxyService } from "../../application/proxy-service.js";
+import { BuiltinToolsService } from "../../application/builtin-tools-service.js";
+import { bearerRestClient } from "../../adapters/http/rest-client.js";
 import { ArtifactsService } from "../../application/artifacts-service.js";
 import { registerHealth } from "./health.js";
 import { registerIdentityRoutes } from "./identity-routes.js";
@@ -115,6 +117,12 @@ export function buildApp(deps: Dependencies): BuiltApp {
     gateway,
     baseUrl: settings.baseUrl,
   });
+  const builtin = new BuiltinToolsService({
+    providers: [],
+    access,
+    makeHttp: (token) => bearerRestClient(token),
+    baseUrl: settings.baseUrl,
+  });
   const artifacts = new ArtifactsService({
     store: stores.artifactStore,
     meta: stores.artifactMeta,
@@ -143,6 +151,7 @@ export function buildApp(deps: Dependencies): BuiltApp {
     tokens: stores.tokens,
     connections,
     proxy,
+    builtin,
     artifacts,
     baseUrl: settings.baseUrl,
   });

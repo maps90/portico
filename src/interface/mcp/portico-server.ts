@@ -8,11 +8,13 @@ import {
 import type { User } from "../../ports/identity.js";
 import type { ConnectionsService } from "../../application/connections-service.js";
 import type { ProxyService } from "../../application/proxy-service.js";
+import type { BuiltinToolsService } from "../../application/builtin-tools-service.js";
 import type { ArtifactsService } from "../../application/artifacts-service.js";
 
 export interface PorticoServerDeps {
   connections: ConnectionsService;
   proxy: ProxyService;
+  builtin: BuiltinToolsService;
   artifacts: ArtifactsService;
 }
 
@@ -175,17 +177,20 @@ export async function buildPorticoServer(user: User, deps: PorticoServerDeps): P
   const localByName = new Map(locals.map((t) => [t.def.name, t] as const));
 
   server.setRequestHandler(ListToolsRequestSchema, async () => {
+    const builtin = await deps.builtin.listTools(user);
     const proxied = await deps.proxy.listTools(user);
     for (const e of proxied.errors) {
       console.warn(`upstream '${e.upstreamId}' listTools failed: ${e.message}`);
     }
-    return { tools: [...locals.map((t) => t.def), ...proxied.tools] };
+    return { tools: [...locals.map((t) => t.def), ...builtin, ...proxied.tools] };
   });
 
   server.setRequestHandler(CallToolRequestSchema, async (req) => {
     const { name, arguments: args } = req.params;
     const local = localByName.get(name);
     if (local) return local.handle(user, args ?? {});
+    const builtinResult = await deps.builtin.callTool(user, name, args ?? {});
+    if (builtinResult) return builtinResult;
     return deps.proxy.callTool(user, name, args ?? {});
   });
 
