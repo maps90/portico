@@ -95,8 +95,6 @@ const SEEDS: Seed[] = [
     scopes: [
       "https://www.googleapis.com/auth/documents",
       "https://www.googleapis.com/auth/drive.file",
-      "openid",
-      "email",
     ],
     authorizeParams: { access_type: "offline", prompt: "consent" },
   },

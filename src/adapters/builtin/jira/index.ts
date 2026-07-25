@@ -42,7 +42,11 @@ export const jiraProvider: BuiltinProvider = {
           maxResults: { type: "number", description: "default 25" } },
         required: ["jql"] } },
       async (ctx, base, a) => {
-        const res = await ctx.http.get(`${base}/search`, { query: { jql: str(a.jql), maxResults: typeof a.maxResults === "number" ? a.maxResults : 25 } });
+        const res = await ctx.http.post(`${base}/search/jql`, {
+          jql: str(a.jql),
+          maxResults: typeof a.maxResults === "number" ? a.maxResults : 25,
+          fields: ["summary", "status", "assignee", "issuetype", "priority", "project", "created", "updated"],
+        });
         return res.ok ? ok(res.body) : fail(res.body);
       }),
     define(

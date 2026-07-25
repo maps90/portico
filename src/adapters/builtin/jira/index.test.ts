@@ -20,13 +20,18 @@ describe("jiraProvider", () => {
       .toEqual(["add_comment", "create_issue", "get_issue", "list_projects", "search"]);
   });
 
-  it("search resolves cloudId then calls /search with the JQL", async () => {
+  it("search resolves cloudId then POSTs /search/jql with the JQL", async () => {
     const calls: any[] = [];
-    const c = http({ "accessible-resources": SITE, "/search": { issues: [{ key: "AB-1" }] } }, calls);
+    const c = http({ "accessible-resources": SITE, "/search/jql": { issues: [{ key: "AB-1" }] } }, calls);
     const res = await tool("search").handle({ http: c }, { jql: "project=AB", maxResults: 10 });
     expect(calls[0][1]).toContain("accessible-resources");
-    const searchCall = calls.find((k) => String(k[1]).includes("/ex/jira/cloud-1/rest/api/3/search"));
-    expect(searchCall[2].query).toEqual({ jql: "project=AB", maxResults: 10 });
+    const searchCall = calls.find((k) => k[0] === "POST" && String(k[1]).endsWith("/ex/jira/cloud-1/rest/api/3/search/jql"));
+    expect(searchCall).toBeTruthy();
+    expect(searchCall[2].jql).toBe("project=AB");
+    expect(searchCall[2].maxResults).toBe(10);
+    expect(searchCall[2].fields).toEqual(
+      expect.arrayContaining(["summary", "status", "assignee", "issuetype", "priority", "project", "created", "updated"]),
+    );
     expect((res.content[0] as any).text).toContain("AB-1");
   });
 
@@ -46,7 +51,7 @@ describe("jiraProvider", () => {
       get: async (url) => url.includes("accessible-resources")
         ? { status: 200, ok: true, body: SITE }
         : { status: 400, ok: false, body: { errorMessages: ["Bad JQL"] } },
-      post: async () => ({ status: 200, ok: true, body: null }),
+      post: async () => ({ status: 400, ok: false, body: { errorMessages: ["Bad JQL"] } }),
     };
     const res = await tool("search").handle({ http: c }, { jql: "!!!" });
     expect(res.isError).toBe(true);
