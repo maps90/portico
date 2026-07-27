@@ -58,6 +58,10 @@ This separation is the core idea — it's what lets one token reach many service
   enforce the allowed-domain policy (`hd` claim, falling back to the email domain)
   → upsert user → mint an opaque bearer token (stored hashed) for Jean's config
   **and** set a signed session cookie for the portal and artifact viewing.
+  A gated route bounces the visitor to `/login?next=<path>` and sign-in returns them
+  there instead of to the portal — clicking a shared `/visual/<id>` link and signing in
+  lands on that visual. Only same-site paths are honoured, so `next` cannot be turned
+  into an open redirect.
 - **Connections** — per user, per upstream OAuth 2.1 auth-code + PKCE against each
   vendor; tokens encrypted in the vault; auto-refresh on expiry. Linking or
   unlinking a service never changes the user's portico token.
