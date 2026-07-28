@@ -21,13 +21,17 @@ const env: Record<string, string> = {
   PORTICO_UPSTREAM_ATLASSIAN_MCP_URL: "https://mcp.atlassian.example/",
 };
 
-/** Fake upstream MCP: atlassian exposes one tool and echoes calls. */
+/**
+ * Fake upstream MCP: one tool, echoes calls. Fronted by github, which is the
+ * remaining proxied upstream — atlassian is served in-process now (see the
+ * registry seed), so it can no longer stand in for the proxy path.
+ */
 class FakeGateway implements UpstreamGateway {
   async listTools(): Promise<Tool[]> {
-    return [{ name: "create_issue", description: "Create a Jira issue", inputSchema: { type: "object" } }];
+    return [{ name: "create_issue", description: "Create an issue", inputSchema: { type: "object" } }];
   }
   async callTool(_url: string, _t: string, name: string, args: Record<string, unknown>): Promise<CallToolResult> {
-    return { content: [{ type: "text", text: `atlassian ran ${name} with ${JSON.stringify(args)}` }] };
+    return { content: [{ type: "text", text: `github ran ${name} with ${JSON.stringify(args)}` }] };
   }
 }
 
@@ -46,16 +50,18 @@ describe("/mcp endpoint (integration, in-memory)", () => {
       email: "u@okadoc.com",
     });
     token = (await built.stores.tokens.mint(user.id, "test")).token;
-    // Pre-link the atlassian upstream for this user.
-    await built.stores.vault.put({
-      userId: user.id,
-      upstreamId: "atlassian",
-      accessToken: "UP_AT",
-      refreshToken: null,
-      expiresAt: null,
-      scopes: [],
-      status: "active",
-    });
+    // Pre-link both: github exercises the proxy, atlassian the builtin Jira tools.
+    for (const upstreamId of ["github", "atlassian"]) {
+      await built.stores.vault.put({
+        userId: user.id,
+        upstreamId,
+        accessToken: "UP_AT",
+        refreshToken: null,
+        expiresAt: null,
+        scopes: [],
+        status: "active",
+      });
+    }
 
     server = await new Promise<Server>((resolve) => {
       const s = built.app.listen(0, () => resolve(s));
@@ -93,8 +99,12 @@ describe("/mcp endpoint (integration, in-memory)", () => {
       expect(names).toContain("portico__list_connections");
       expect(names).toContain("portico__connect");
       expect(names).toContain("portico__disconnect");
-      // proxied from the linked atlassian upstream, namespaced
-      expect(names).toContain("atlassian__create_issue");
+      // proxied from the linked github upstream, namespaced
+      expect(names).toContain("github__create_issue");
+      // atlassian is linked too, but serves builtin Jira tools over REST and
+      // advertises nothing proxied — the 40 dead mcp.atlassian.com tools are gone.
+      expect(names).toContain("jira__search");
+      expect(names.filter((n) => n.startsWith("atlassian__"))).toEqual([]);
     } finally {
       await client.close();
     }
@@ -104,11 +114,11 @@ describe("/mcp endpoint (integration, in-memory)", () => {
     const client = await connect(token);
     try {
       const res = await client.callTool({
-        name: "atlassian__create_issue",
+        name: "github__create_issue",
         arguments: { summary: "Bug" },
       });
       const content = res.content as Array<{ type: string; text: string }>;
-      expect(content[0]!.text).toContain("atlassian ran create_issue");
+      expect(content[0]!.text).toContain("github ran create_issue");
       expect(content[0]!.text).toContain("Bug");
     } finally {
       await client.close();
