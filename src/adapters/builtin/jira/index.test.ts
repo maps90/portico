@@ -35,6 +35,44 @@ describe("jiraProvider", () => {
     expect((res.content[0] as any).text).toContain("AB-1");
   });
 
+  it("search asks for creator and reporter, so attribution costs no extra call", async () => {
+    // Without these in the default set the only route to "who raised this" is
+    // get_issue per ticket -- an agent asked for an org-wide breakdown priced it
+    // at 300-500 calls. Jira returns them in the same search response for free.
+    const calls: any[] = [];
+    const c = http({ "accessible-resources": SITE, "/search/jql": { issues: [] } }, calls);
+    await tool("search").handle({ http: c }, { jql: "project=AB" });
+    const searchCall = calls.find((k) => k[0] === "POST");
+    expect(searchCall[2].fields).toEqual(expect.arrayContaining(["creator", "reporter"]));
+  });
+
+  it("search lets the caller override the field set", async () => {
+    const calls: any[] = [];
+    const c = http({ "accessible-resources": SITE, "/search/jql": { issues: [] } }, calls);
+    await tool("search").handle({ http: c }, { jql: "project=AB", fields: ["summary", "labels"] });
+    const searchCall = calls.find((k) => k[0] === "POST");
+    expect(searchCall[2].fields).toEqual(["summary", "labels"]);
+  });
+
+  it("search forwards nextPageToken so results past the first page are reachable", async () => {
+    // /search/jql is token-paginated. With no way to send the token back, any
+    // query matching more than one page returned the first page and stopped --
+    // a short answer that looks complete.
+    const calls: any[] = [];
+    const c = http({ "accessible-resources": SITE, "/search/jql": { issues: [] } }, calls);
+    await tool("search").handle({ http: c }, { jql: "project=AB", nextPageToken: "tok-2" });
+    const searchCall = calls.find((k) => k[0] === "POST");
+    expect(searchCall[2].nextPageToken).toBe("tok-2");
+  });
+
+  it("search omits nextPageToken on a first page rather than sending an empty one", async () => {
+    const calls: any[] = [];
+    const c = http({ "accessible-resources": SITE, "/search/jql": { issues: [] } }, calls);
+    await tool("search").handle({ http: c }, { jql: "project=AB" });
+    const searchCall = calls.find((k) => k[0] === "POST");
+    expect("nextPageToken" in searchCall[2]).toBe(false);
+  });
+
   it("create_issue posts fields with an ADF description", async () => {
     const calls: any[] = [];
     const c = http({ "accessible-resources": SITE }, calls);
