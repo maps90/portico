@@ -25,10 +25,25 @@ interface Seed {
 const SEEDS: Seed[] = [
   {
     id: "atlassian",
-    displayName: "Atlassian (Jira & Confluence)",
-    defaultMcpUrl: "https://mcp.atlassian.com/v1/sse",
+    displayName: "Atlassian (Jira)",
+    // Not proxied from mcp.atlassian.com. That server authenticates our 3LO token
+    // and lists all 40 of its tools, then refuses every tools/call with a canned
+    // "We are having trouble completing this action. Please try again shortly."
+    // Ruled out, in order, against a live connection: the grant (all nine scopes
+    // present, read:me and offline_access included, missingScopes empty), a stale
+    // token (re-consented), and the endpoint (already the streamable-HTTP /v1/mcp,
+    // matching the transport). The same token then drove Jira Cloud REST fine --
+    // a real JQL validation error came back -- while the identical tool succeeded
+    // through a token minted by Atlassian's *own* OAuth flow, which grants the
+    // granular Confluence dialect a classic 3LO app is never offered.
+    //
+    // So: Jira is served in-process by jiraProvider over REST (see
+    // adapters/builtin/jira), and this entry advertises no proxied tools at all.
+    // Confluence has no builtin provider yet, so it is currently unserved -- its
+    // scopes stay requested below so adding one needs no re-consent.
+    defaultMcpUrl: "",
     toolPrefix: "atlassian",
-    kind: "proxied",
+    kind: "builtin",
     authorizationUrl: "https://auth.atlassian.com/authorize",
     tokenUrl: "https://auth.atlassian.com/oauth/token",
     // Listing tools needs no permission; invoking them does. Get this list wrong

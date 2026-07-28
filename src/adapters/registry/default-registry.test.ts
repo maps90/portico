@@ -57,3 +57,31 @@ describe("atlassian scopes", () => {
     );
   });
 });
+
+describe("atlassian transport", () => {
+  const atlassian = (env: Record<string, string | undefined> = {}) =>
+    buildRegistry(env).get("atlassian")!;
+
+  it("is served by builtin REST tools, not the remote MCP server", () => {
+    // mcp.atlassian.com authenticates a 3LO token from our own app -- tools/list
+    // returns all 40 tools -- and then refuses every tools/call with a canned
+    // "We are having trouble completing this action.", naming nothing. Verified
+    // against a token holding the full requested grant (read:me and offline_access
+    // included) and the streamable-HTTP endpoint: the same token drives Jira Cloud
+    // REST fine, so the grant was never the problem. Its own OAuth flow issues a
+    // differently-shaped token that this classic 3LO app cannot mint.
+    //
+    // So Jira is served by jiraProvider over REST, and nothing here is proxied.
+    expect(atlassian().kind).toBe("builtin");
+    expect(atlassian().mcpUrl).toBe("");
+  });
+
+  it("stays builtin even while an MCP URL is still configured", () => {
+    // PORTICO_UPSTREAM_ATLASSIAN_MCP_URL is still set in deployed environments.
+    // `kind` is the authority on how an upstream is served, not the presence of a
+    // URL -- otherwise removing this would need a Vault edit timed to the rollout.
+    expect(atlassian({ PORTICO_UPSTREAM_ATLASSIAN_MCP_URL: "https://mcp.atlassian.com/v1/mcp" }).kind).toBe(
+      "builtin",
+    );
+  });
+});
