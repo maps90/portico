@@ -27,8 +27,9 @@ const errorResult = (text: string): CallToolResult => ({
 
 /**
  * Aggregates and routes upstream MCP tools for one user. `listTools` fans out to
- * every connected upstream, namespaces tool names, and skips (records) any that
- * are unreachable. `callTool` parses the prefix, refreshes the token, and
+ * every connected *proxied* upstream, namespaces tool names, and skips (records)
+ * any that are unreachable; builtin upstreams have no MCP endpoint and belong to
+ * BuiltinToolsService. `callTool` parses the prefix, refreshes the token, and
  * forwards to the owning upstream — returning an actionable connect prompt when
  * the service is not linked or has expired.
  */
@@ -47,6 +48,7 @@ export class ProxyService {
     for (const conn of conns) {
       const entry = this.deps.registry.get(conn.upstreamId);
       if (!entry) continue;
+      if (entry.kind !== "proxied") continue; // served in-process by BuiltinToolsService
       const fresh = await this.deps.access.getFresh(user.id, conn.upstreamId);
       if (!fresh) continue; // not active / expired → omit; user reconnects
       try {
@@ -69,8 +71,12 @@ export class ProxyService {
     const parsed = parseTool(namespacedName);
     if (!parsed) return errorResult(`Unknown tool '${namespacedName}'.`);
 
+    // A builtin prefix that reaches the proxy means no builtin provider claimed it,
+    // so it is not one of ours either — say so instead of dialling an empty mcpUrl.
     const entry = this.deps.registry.byPrefix(parsed.prefix);
-    if (!entry) return errorResult(`No upstream for tool prefix '${parsed.prefix}'.`);
+    if (!entry || entry.kind !== "proxied") {
+      return errorResult(`No upstream for tool prefix '${parsed.prefix}'.`);
+    }
 
     const fresh = await this.deps.access.getFresh(user.id, entry.id);
     if (!fresh) {

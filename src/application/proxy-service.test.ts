@@ -17,10 +17,18 @@ const entry = (id: string, prefix: string): UpstreamEntry => ({
   oauth: { authorizationUrl: "a", tokenUrl: "t", scopes: [], clientId: "c", clientSecret: "s" },
 });
 
+/** A builtin upstream: tools run in-process, so there is no MCP endpoint to dial. */
+const builtin = (id: string, prefix: string): UpstreamEntry => ({
+  ...entry(id, prefix),
+  mcpUrl: "",
+  kind: "builtin",
+});
+
 const registry = new Registry(
   new Map([
     ["atlassian", entry("atlassian", "atlassian")],
     ["github", entry("github", "github")],
+    ["google-docs", builtin("google-docs", "gdocs")],
   ]),
 );
 
@@ -30,14 +38,24 @@ class NoRefresh implements UpstreamOAuthClient {
   async refresh(): Promise<UpstreamTokens> { throw new Error("x"); }
 }
 
-/** Fake gateway: atlassian serves one tool; github always throws (unreachable). */
+/**
+ * Fake gateway: atlassian serves one tool; github always throws (unreachable).
+ * An empty URL throws `TypeError: Invalid URL` exactly as the real transport does
+ * -- `new StreamableHTTPClientTransport(new URL(""))` -- which is how a builtin
+ * upstream reaching this layer announced itself in production.
+ */
 class FakeGateway implements UpstreamGateway {
   public calls: Array<{ url: string; token: string; name: string; args: unknown }> = [];
+  private assertDialable(mcpUrl: string): void {
+    if (mcpUrl === "") throw new TypeError("Invalid URL");
+  }
   async listTools(mcpUrl: string): Promise<Tool[]> {
+    this.assertDialable(mcpUrl);
     if (mcpUrl.endsWith("/github")) throw new Error("connection refused");
     return [{ name: "create_issue", description: "create", inputSchema: { type: "object" } }];
   }
   async callTool(mcpUrl: string, token: string, name: string, args: Record<string, unknown>): Promise<CallToolResult> {
+    this.assertDialable(mcpUrl);
     this.calls.push({ url: mcpUrl, token, name, args });
     return { content: [{ type: "text", text: `called ${name}` }] };
   }
@@ -85,5 +103,29 @@ describe("ProxyService", () => {
   it("errors clearly for an unknown tool prefix", async () => {
     const res = await svc.callTool(user, "bogus__tool", {});
     expect(res.isError).toBe(true);
+  });
+
+  it("leaves a connected builtin upstream alone -- no dial, no error", async () => {
+    // A builtin upstream has no MCP endpoint by definition; BuiltinToolsService
+    // serves its tools in-process. Proxying it anyway dialled the empty string and
+    // logged `upstream 'google-docs' listTools failed: TypeError: Invalid URL` on
+    // every single tools/list -- pure noise that also implied a broken connection
+    // when the connection was fine.
+    await vault.put({ userId: "u1", upstreamId: "google-docs", accessToken: "AT", refreshToken: null, expiresAt: null, scopes: [], status: "active" });
+    const { tools, errors } = await svc.listTools(user);
+    expect(tools.map((t) => t.name)).toEqual(["atlassian__create_issue"]);
+    expect(errors).toEqual([]);
+  });
+
+  it("does not route a builtin prefix into the proxy", async () => {
+    // Reaching here means no builtin provider claimed the prefix, so as far as the
+    // proxy is concerned the prefix is simply not one of its own. Say that, rather
+    // than dialling an empty URL and reporting a transport failure.
+    await vault.put({ userId: "u1", upstreamId: "google-docs", accessToken: "AT", refreshToken: null, expiresAt: null, scopes: [], status: "active" });
+    const res = await svc.callTool(user, "gdocs__create_document", {});
+    expect(res.isError).toBe(true);
+    expect((res.content as Array<{ text: string }>)[0]!.text).toContain("gdocs");
+    expect((res.content as Array<{ text: string }>)[0]!.text).not.toContain("Invalid URL");
+    expect(gateway.calls).toEqual([]);
   });
 });
