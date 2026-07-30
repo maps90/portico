@@ -16,7 +16,7 @@ async function parseBody(res: Response): Promise<unknown> {
 /** A RestClient bound to one bearer token; parses JSON and never throws on non-2xx. */
 export function bearerRestClient(token: string, fetchImpl: typeof fetch = fetch): RestClient {
   const call = async (
-    method: "GET" | "POST", url: string, body?: unknown, init?: RestInit,
+    method: "GET" | "POST" | "PUT", url: string, body?: unknown, init?: RestInit,
   ): Promise<RestResponse> => {
     const res = await fetchImpl(withQuery(url, init?.query), {
       method,
@@ -33,5 +33,6 @@ export function bearerRestClient(token: string, fetchImpl: typeof fetch = fetch)
   return {
     get: (url, init) => call("GET", url, undefined, init),
     post: (url, body, init) => call("POST", url, body, init),
+    put: (url, body, init) => call("PUT", url, body, init),
   };
 }

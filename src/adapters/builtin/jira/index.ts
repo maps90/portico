@@ -36,6 +36,19 @@ const SEARCH_FIELDS = [
 const strList = (v: unknown): string[] | null =>
   Array.isArray(v) && v.length > 0 ? v.map((x) => String(x)) : null;
 
+/**
+ * The one field that makes an issue a child of another. Jira unified its hierarchy
+ * behind `parent`, so this single shape covers an epic's children in both
+ * team-managed and company-managed projects *and* subtasks under a story -- the
+ * legacy `customfield_1000x` "Epic Link" is no longer the route. Reach it via
+ * edit_issue's raw `fields` on a site old enough to still need it.
+ *
+ * `null` is Jira's documented way to orphan an issue, and is deliberately distinct
+ * from the argument being absent, which must leave the current parent alone.
+ */
+const parentField = (v: unknown): { key: string } | null =>
+  v === null ? null : { key: String(v) };
+
 const define = (def: Tool, run: (ctx: BuiltinCtx, base: string, a: Record<string, unknown>) => Promise<CallToolResult>): BuiltinTool => ({
   def,
   handle: async (ctx, a) => {
@@ -82,18 +95,54 @@ export const jiraProvider: BuiltinProvider = {
         return res.ok ? ok(res.body) : fail(res.body);
       }),
     define(
-      { name: "create_issue", description: "Create a Jira issue.", inputSchema: {
+      { name: "create_issue", description:
+          "Create a Jira issue. To add a child to an epic, pass the epic's key as " +
+          "parent and an issueType that sits below an epic (Story, Task, Bug). The " +
+          "same parent creates a subtask when issueType is a subtask type.",
+        inputSchema: {
         type: "object",
         properties: { project: { type: "string", description: "project key" }, issueType: { type: "string", description: "e.g. Task, Bug" },
-          summary: { type: "string" }, description: { type: "string", description: "optional plain text" } },
+          summary: { type: "string" }, description: { type: "string", description: "optional plain text" },
+          parent: { type: "string", description: "parent issue key -- an epic to file this under, or the story a subtask belongs to, e.g. AB-9" } },
         required: ["project", "issueType", "summary"] } },
       async (ctx, base, a) => {
         const fields: Record<string, unknown> = {
           project: { key: str(a.project) }, issuetype: { name: str(a.issueType) }, summary: str(a.summary),
         };
         if (typeof a.description === "string" && a.description) fields.description = adf(a.description);
+        // Only when non-empty: `parent: {key: ""}` is a 400, not "no parent".
+        if (typeof a.parent === "string" && a.parent) fields.parent = parentField(a.parent);
         const res = await ctx.http.post(`${base}/issue`, { fields });
         return res.ok ? ok(res.body) : fail(res.body);
+      }),
+    define(
+      { name: "edit_issue", description:
+          "Update fields on an existing Jira issue. Pass parent to move an issue " +
+          "under an epic (or null to detach it). Use fields for anything without a " +
+          "named argument, such as labels, priority or a custom field.",
+        inputSchema: {
+        type: "object",
+        properties: { key: { type: "string", description: "issue key, e.g. AB-123" },
+          summary: { type: "string" }, description: { type: "string", description: "plain text, replaces the existing description" },
+          parent: { type: ["string", "null"], description: "epic or parent issue key to move this under; null detaches it" },
+          fields: { type: "object", description: "raw Jira field map, merged into the edit, e.g. {\"labels\":[\"x\"],\"customfield_10117\":5}" } },
+        required: ["key"] } },
+      async (ctx, base, a) => {
+        // Raw fields first so a named argument wins the collision -- it is the
+        // more specific request.
+        const fields: Record<string, unknown> = {
+          ...(a.fields && typeof a.fields === "object" ? a.fields as Record<string, unknown> : {}),
+        };
+        if (typeof a.summary === "string") fields.summary = a.summary;
+        if (typeof a.description === "string") fields.description = adf(a.description);
+        if ("parent" in a) fields.parent = parentField(a.parent);
+        if (Object.keys(fields).length === 0) {
+          return fail("Nothing to update. Pass at least one of parent, summary, description or fields.");
+        }
+        const res = await ctx.http.put(`${base}/issue/${encodeURIComponent(str(a.key))}`, { fields });
+        // A successful edit is 204 with an empty body, which ok() would render as
+        // the bare text "null" -- indistinguishable from a failure to a caller.
+        return res.ok ? ok(`Updated ${str(a.key)}: ${Object.keys(fields).join(", ")}.`) : fail(res.body);
       }),
     define(
       { name: "add_comment", description: "Add a comment to a Jira issue.", inputSchema: {

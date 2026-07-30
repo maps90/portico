@@ -8,6 +8,8 @@ export interface RestInit {
 export interface RestClient {
   get(url: string, init?: RestInit): Promise<RestResponse>;
   post(url: string, body: unknown, init?: RestInit): Promise<RestResponse>;
+  /** Jira edits an issue with PUT, and answers 204 with an empty body. */
+  put(url: string, body: unknown, init?: RestInit): Promise<RestResponse>;
 }
 
 /** Everything a builtin tool handler is given to do its work. */

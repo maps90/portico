@@ -76,6 +76,6 @@ See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the layering,
 
 ## Status
 
-Feature-complete. The default suite (118 tests) runs entirely on in-memory adapters — no
+Feature-complete. The default suite (166 tests) runs entirely on in-memory adapters — no
 database, no cloud, no credentials. `make test-e2e` additionally drives a real browser to
 verify the visual sandbox holds; it is the only test that needs one.
