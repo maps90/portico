@@ -18,6 +18,7 @@ const provider: BuiltinProvider = {
 const fakeHttp: RestClient = {
   get: async () => ({ status: 200, ok: true, body: "hit" }),
   post: async () => ({ status: 200, ok: true, body: null }),
+  put: async () => ({ status: 204, ok: true, body: null }),
 };
 
 const svc = (getFresh: (u: string, id: string) => Promise<Connection | null>) =>

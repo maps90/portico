@@ -6,6 +6,7 @@ function http(body: unknown, calls: any[] = []): RestClient {
   return {
     get: async (url, init) => { calls.push(["GET", url, init]); return { status: 200, ok: true, body }; },
     post: async (url, b) => { calls.push(["POST", url, b]); return { status: 200, ok: true, body }; },
+    put: async (url, b) => { calls.push(["PUT", url, b]); return { status: 200, ok: true, body }; },
   };
 }
 const tool = (name: string) => googleDocsProvider.tools.find((t) => t.def.name === name)!;

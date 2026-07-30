@@ -8,16 +8,18 @@ function http(routes: Record<string, unknown>, calls: any[] = []): RestClient {
   return {
     get: async (url, init) => { calls.push(["GET", url, init]); return { status: 200, ok: true, body: find(url) ?? null }; },
     post: async (url, body) => { calls.push(["POST", url, body]); return { status: 200, ok: true, body: find(url) ?? { key: "OK-1" } }; },
+    // Jira answers a successful PUT /issue/{key} with 204 and an empty body.
+    put: async (url, body) => { calls.push(["PUT", url, body]); return { status: 204, ok: true, body: null }; },
   };
 }
 const tool = (name: string) => jiraProvider.tools.find((t) => t.def.name === name)!;
 
 describe("jiraProvider", () => {
-  it("exposes the five tools with the jira prefix binding", () => {
+  it("exposes the six tools with the jira prefix binding", () => {
     expect(jiraProvider.id).toBe("atlassian");
     expect(jiraProvider.toolPrefix).toBe("jira");
     expect(jiraProvider.tools.map((t) => t.def.name).sort())
-      .toEqual(["add_comment", "create_issue", "get_issue", "list_projects", "search"]);
+      .toEqual(["add_comment", "create_issue", "edit_issue", "get_issue", "list_projects", "search"]);
   });
 
   it("search resolves cloudId then POSTs /search/jql with the JQL", async () => {
@@ -82,6 +84,72 @@ describe("jiraProvider", () => {
     expect(post[2].fields.issuetype).toEqual({ name: "Task" });
     expect(post[2].fields.summary).toBe("S");
     expect(post[2].fields.description.type).toBe("doc");
+  });
+
+  it("create_issue parents the new issue when given a parent key", async () => {
+    // Without this the parent argument was accepted and silently dropped: Jira
+    // returned 201 and the issue landed outside the epic, so "add a child to
+    // this epic" reported success and did nothing.
+    const calls: any[] = [];
+    const c = http({ "accessible-resources": SITE }, calls);
+    await tool("create_issue").handle({ http: c },
+      { project: "AB", issueType: "Story", summary: "S", parent: "AB-9" });
+    const post = calls.find((k) => k[0] === "POST");
+    expect(post[2].fields.parent).toEqual({ key: "AB-9" });
+  });
+
+  it("create_issue omits parent entirely when none is given", async () => {
+    // `parent: {key: ""}` is not "no parent" to Jira, it is a 400.
+    const calls: any[] = [];
+    const c = http({ "accessible-resources": SITE }, calls);
+    await tool("create_issue").handle({ http: c }, { project: "AB", issueType: "Task", summary: "S" });
+    const post = calls.find((k) => k[0] === "POST");
+    expect("parent" in post[2].fields).toBe(false);
+  });
+
+  it("edit_issue PUTs the parent so an existing issue can join an epic", async () => {
+    const calls: any[] = [];
+    const c = http({ "accessible-resources": SITE }, calls);
+    await tool("edit_issue").handle({ http: c }, { key: "AB-1", parent: "AB-9" });
+    const put = calls.find((k) => k[0] === "PUT");
+    expect(String(put[1])).toContain("/ex/jira/cloud-1/rest/api/3/issue/AB-1");
+    expect(put[2].fields.parent).toEqual({ key: "AB-9" });
+  });
+
+  it("edit_issue clears the parent when parent is null", async () => {
+    // Jira's documented way to orphan an issue. Distinct from "parent omitted",
+    // which must leave the existing parent alone.
+    const calls: any[] = [];
+    const c = http({ "accessible-resources": SITE }, calls);
+    await tool("edit_issue").handle({ http: c }, { key: "AB-1", parent: null });
+    const put = calls.find((k) => k[0] === "PUT");
+    expect(put[2].fields.parent).toBe(null);
+  });
+
+  it("edit_issue merges a raw fields object, so custom fields need no new param", async () => {
+    const calls: any[] = [];
+    const c = http({ "accessible-resources": SITE }, calls);
+    await tool("edit_issue").handle({ http: c },
+      { key: "AB-1", summary: "new", fields: { customfield_10117: 5 } });
+    const put = calls.find((k) => k[0] === "PUT");
+    expect(put[2].fields.summary).toBe("new");
+    expect(put[2].fields.customfield_10117).toBe(5);
+  });
+
+  it("edit_issue refuses a call with nothing to change instead of PUTting an empty edit", async () => {
+    const calls: any[] = [];
+    const c = http({ "accessible-resources": SITE }, calls);
+    const res = await tool("edit_issue").handle({ http: c }, { key: "AB-1" });
+    expect(res.isError).toBe(true);
+    expect(calls.some((k) => k[0] === "PUT")).toBe(false);
+  });
+
+  it("edit_issue reports success on Jira's empty 204 body", async () => {
+    // ok(null) renders the string "null", which reads as a failure to an agent.
+    const c = http({ "accessible-resources": SITE });
+    const res = await tool("edit_issue").handle({ http: c }, { key: "AB-1", parent: "AB-9" });
+    expect(res.isError).toBeFalsy();
+    expect((res.content[0] as any).text).toContain("AB-1");
   });
 
   it("surfaces the Jira error body instead of a generic message", async () => {
