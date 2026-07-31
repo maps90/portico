@@ -28,7 +28,7 @@ the same secrets.)
    domain can sign in. Leaving it empty lets **any** Google account in — never do
    that on a public URL.
 
-This client asks only for `openid email profile`. The Google Drive *upstream* is a
+This client asks only for `openid email profile`. The Google Docs *upstream* is a
 separate OAuth client with its own scopes (step 2).
 
 ## 2. Upstream OAuth apps (per service you enable)
