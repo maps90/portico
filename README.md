@@ -2,8 +2,8 @@
 
 A unified **MCP gateway** + **HTML artifact host**. One token, every service.
 
-- **Gateway** — sign in with Google, link Jira/Confluence, Google Drive, GitHub…
-  from the portal, and get **one bearer token**. Point Jean (or any MCP client) at
+- **Gateway** — sign in with Google, link Jira and Google Docs from the portal, and
+  get **one bearer token**. Point Jean (or any MCP client) at
   portico with that token and it sees the aggregated, namespaced tools of every
   service you've linked. portico holds each user's per-service OAuth tokens
   server-side, AES-256-GCM encrypted, and proxies calls through — linking a new
@@ -40,11 +40,34 @@ on Jira. `make` on its own lists every target.
 | `PORTICO_UPSTREAM_GOOGLE_DOCS_CLIENT_ID` / `_SECRET` | Google Cloud Console → Credentials → OAuth client ID (Web application). Redirect URI: `http://localhost:8080/connect/google-docs/callback`. Enable Google Docs and Drive APIs. |
 
 `make setup` generates `PORTICO_ENCRYPTION_KEY` and `PORTICO_SESSION_SECRET` for you.
-Other upstreams (GitHub, Google Drive) follow the same `PORTICO_UPSTREAM_<ID>_*`
-pattern and simply show as *Not configured* in the portal until you fill them in.
+GitHub follows the same `PORTICO_UPSTREAM_<ID>_*` pattern and simply shows as
+*Not configured* in the portal until you fill it in.
 
-**Jira tools** (`jira__*`) are served in-process from the existing `atlassian` connection
-and need no separate configuration. **Confluence** still proxies the hosted Atlassian MCP.
+## What you actually get
+
+| Prefix | Served by | Tools |
+|---|---|---|
+| `jira__` | builtin, over Jira Cloud REST | `search`, `get_issue`, `create_issue`, `edit_issue`, `add_comment`, `list_projects` |
+| `gdocs__` | builtin, over the Docs + Drive REST APIs | `create_document`, `get_document`, `append_text`, `list_documents` |
+| `github__` | proxied to GitHub's hosted MCP | whatever that server advertises — **unconfigured by default, so no tools appear** |
+
+Both builtin providers reuse a connection you already made: `jira__*` rides the
+`atlassian` grant, so it needs no separate setup.
+
+Two limits worth knowing before you hit them:
+
+- **Confluence is not served.** Its scopes are still requested on the `atlassian`
+  connection so that adding a provider later needs no re-consent, but no provider
+  claims them today and the hosted Atlassian MCP is not proxied (see the note in
+  `adapters/registry/default-registry.ts` for why — it authenticates, lists all 40
+  tools, then refuses every call).
+- **`gdocs__*` only sees its own documents.** The `drive.file` scope grants per-file
+  access to documents this app created; one made elsewhere is invisible even when you
+  can open it in a browser. Widening that is a consent decision, not a code change.
+
+Paged tools — `jira__search`, `jira__list_projects`, `gdocs__list_documents` — return
+**one page**. Each says so in its description and hands back the cursor to continue
+with; a count taken from a single page is not a total.
 
 ## Commands
 
@@ -76,6 +99,6 @@ See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the layering,
 
 ## Status
 
-Feature-complete. The default suite (166 tests) runs entirely on in-memory adapters — no
+Feature-complete. The default suite (175 tests) runs entirely on in-memory adapters — no
 database, no cloud, no credentials. `make test-e2e` additionally drives a real browser to
 verify the visual sandbox holds; it is the only test that needs one.

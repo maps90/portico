@@ -3,7 +3,7 @@
 [Jean](../../jean) is a Slack-native Claude Code runtime built on
 `claude-agent-sdk`. It already speaks through one in-process MCP server
 (`jean_slack`). portico is attached as an **additional, remote** MCP server, so
-Jean gains every tool the user has linked (Jira, Google Drive, GitHub, …) plus
+Jean gains every tool the user has linked (Jira, Google Docs, …) plus
 the visual host — all behind one bearer token.
 
 ## The model

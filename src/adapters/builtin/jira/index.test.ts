@@ -152,6 +152,26 @@ describe("jiraProvider", () => {
     expect((res.content[0] as any).text).toContain("AB-1");
   });
 
+  it("list_projects asks for a full page and reports where it stopped", async () => {
+    // /project/search caps a page at 50. Sending nothing took Jira's default and
+    // returned 50 of the site's 107 projects with no sign there were more, so an
+    // agent could not see -- or file anything into -- project 51 onward.
+    const calls: any[] = [];
+    const c = http({ "accessible-resources": SITE, "/project/search": { values: [], isLast: false, total: 107 } }, calls);
+    await tool("list_projects").handle({ http: c }, {});
+    const get = calls.find((k) => k[0] === "GET" && String(k[1]).includes("/project/search"));
+    expect(get[2].query.maxResults).toBe(50);
+    expect(get[2].query.startAt).toBe(0);
+  });
+
+  it("list_projects pages with startAt so projects past the first page are reachable", async () => {
+    const calls: any[] = [];
+    const c = http({ "accessible-resources": SITE, "/project/search": { values: [], isLast: true } }, calls);
+    await tool("list_projects").handle({ http: c }, { startAt: 50 });
+    const get = calls.find((k) => k[0] === "GET" && String(k[1]).includes("/project/search"));
+    expect(get[2].query.startAt).toBe(50);
+  });
+
   it("surfaces the Jira error body instead of a generic message", async () => {
     const c: RestClient = {
       get: async (url) => url.includes("accessible-resources")

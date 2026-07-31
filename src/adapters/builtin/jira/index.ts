@@ -152,9 +152,26 @@ export const jiraProvider: BuiltinProvider = {
         return res.ok ? ok(res.body) : fail(res.body);
       }),
     define(
-      { name: "list_projects", description: "List Jira projects visible to you.", inputSchema: { type: "object", properties: {} } },
-      async (ctx, base) => {
-        const res = await ctx.http.get(`${base}/project/search`);
+      { name: "list_projects", description:
+          "List Jira projects visible to you, ONE page at a time. A page holds at " +
+          "most 50. The result carries total and isLast: while isLast is false " +
+          "there are more, so call again with startAt advanced by the page size " +
+          "until it is true. A count taken from a single page is not a total.",
+        inputSchema: {
+        type: "object",
+        properties: { startAt: { type: "number", description: "0-based index of the first project to return, default 0" },
+          maxResults: { type: "number", description: "page size, default (and max) 50" } } } },
+      async (ctx, base, a) => {
+        // Sending nothing took Jira's own default and returned 50 of a 107-project
+        // site with no marker that anything was missing, so an agent could neither
+        // see nor file into project 51 onward. Asking explicitly also brings back
+        // total/isLast, which is what makes the truncation visible at all.
+        const res = await ctx.http.get(`${base}/project/search`, {
+          query: {
+            startAt: typeof a.startAt === "number" ? a.startAt : 0,
+            maxResults: typeof a.maxResults === "number" ? a.maxResults : 50,
+          },
+        });
         return res.ok ? ok(res.body) : fail(res.body);
       }),
   ],
