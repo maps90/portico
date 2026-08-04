@@ -28,7 +28,7 @@ const registry = new Registry(
   new Map([
     ["atlassian", entry("atlassian", "atlassian")],
     ["github", entry("github", "github")],
-    ["google-docs", builtin("google-docs", "gdocs")],
+    ["google-drive", builtin("google-drive", "gdrive")],
   ]),
 );
 
@@ -108,10 +108,10 @@ describe("ProxyService", () => {
   it("leaves a connected builtin upstream alone -- no dial, no error", async () => {
     // A builtin upstream has no MCP endpoint by definition; BuiltinToolsService
     // serves its tools in-process. Proxying it anyway dialled the empty string and
-    // logged `upstream 'google-docs' listTools failed: TypeError: Invalid URL` on
+    // logged `upstream 'google-drive' listTools failed: TypeError: Invalid URL` on
     // every single tools/list -- pure noise that also implied a broken connection
     // when the connection was fine.
-    await vault.put({ userId: "u1", upstreamId: "google-docs", accessToken: "AT", refreshToken: null, expiresAt: null, scopes: [], status: "active" });
+    await vault.put({ userId: "u1", upstreamId: "google-drive", accessToken: "AT", refreshToken: null, expiresAt: null, scopes: [], status: "active" });
     const { tools, errors } = await svc.listTools(user);
     expect(tools.map((t) => t.name)).toEqual(["atlassian__create_issue"]);
     expect(errors).toEqual([]);
@@ -121,10 +121,10 @@ describe("ProxyService", () => {
     // Reaching here means no builtin provider claimed the prefix, so as far as the
     // proxy is concerned the prefix is simply not one of its own. Say that, rather
     // than dialling an empty URL and reporting a transport failure.
-    await vault.put({ userId: "u1", upstreamId: "google-docs", accessToken: "AT", refreshToken: null, expiresAt: null, scopes: [], status: "active" });
-    const res = await svc.callTool(user, "gdocs__create_document", {});
+    await vault.put({ userId: "u1", upstreamId: "google-drive", accessToken: "AT", refreshToken: null, expiresAt: null, scopes: [], status: "active" });
+    const res = await svc.callTool(user, "gdrive__search_files", {});
     expect(res.isError).toBe(true);
-    expect((res.content as Array<{ text: string }>)[0]!.text).toContain("gdocs");
+    expect((res.content as Array<{ text: string }>)[0]!.text).toContain("gdrive");
     expect((res.content as Array<{ text: string }>)[0]!.text).not.toContain("Invalid URL");
     expect(gateway.calls).toEqual([]);
   });

@@ -13,16 +13,20 @@ const DOCS = "https://docs.googleapis.com/v1/documents";
 const t = (def: Tool, handle: BuiltinTool["handle"]): BuiltinTool => ({ def, handle });
 
 /**
- * What every tool here can and cannot see. `drive.file` is per-file access: the
- * grant covers documents this app created or the user explicitly picked for it,
- * and nothing else. Said in each tool description because the tool description is
- * the only thing the calling agent reads -- without it, a pasted document id 404s
- * and the honest report back is "Google Docs is broken" rather than "not shared
- * with this app". Widening it is a consent decision (drive.readonly), not a code one.
+ * What every tool here can and cannot see. These tools ride the `google-drive`
+ * connection, which now carries `drive.readonly` alongside `drive.file` -- the
+ * consent decision this note used to describe as the way to widen the old
+ * per-file limit. So a document the user can open in a browser is readable here,
+ * and list_documents is no longer confined to what this app itself created.
+ *
+ * Writing is the narrow half and stays that way: `documents` reaches Google Docs
+ * and nothing else, so no tool on this connection can edit a spreadsheet, alter a
+ * deck, or delete a file. Said in each tool description because the tool
+ * description is the only thing the calling agent reads.
  */
 const SCOPE_NOTE =
-  "Limited to documents created through this tool (the drive.file scope): a " +
-  "document made elsewhere is invisible here even if you can open it in a browser.";
+  "Reads cover any document the signed-in user can open (the connection carries " +
+  "drive.readonly); writes reach Google Docs only.";
 
 type Node = Record<string, unknown>;
 const nodes = (v: unknown): Node[] => (Array.isArray(v) ? (v as Node[]) : []);
@@ -58,7 +62,7 @@ const documentText = (doc: unknown): string => {
 };
 
 export const googleDocsProvider: BuiltinProvider = {
-  id: "google-docs",
+  id: "google-drive",
   toolPrefix: "gdocs",
   tools: [
     t({ name: "create_document", description: "Create a new Google Doc.", inputSchema: {

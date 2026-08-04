@@ -1,5 +1,5 @@
 import { Plug } from "lucide-react";
-import { siJira, siGoogledocs, siGithub, type SimpleIcon } from "simple-icons";
+import { siJira, siGoogledrive, siGithub, type SimpleIcon } from "simple-icons";
 
 /**
  * Official brand marks (via simple-icons) rather than hand-copied approximations,
@@ -9,7 +9,7 @@ import { siJira, siGoogledocs, siGithub, type SimpleIcon } from "simple-icons";
  */
 const BRANDS: Record<string, SimpleIcon> = {
   atlassian: siJira,
-  "google-docs": siGoogledocs,
+  "google-drive": siGoogledrive,
   github: siGithub,
 };
 

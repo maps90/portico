@@ -12,8 +12,8 @@ function http(body: unknown, calls: any[] = []): RestClient {
 const tool = (name: string) => googleDocsProvider.tools.find((t) => t.def.name === name)!;
 
 describe("googleDocsProvider", () => {
-  it("binds to the google-docs connection with the gdocs prefix", () => {
-    expect(googleDocsProvider.id).toBe("google-docs");
+  it("binds to the google-drive connection with the gdocs prefix", () => {
+    expect(googleDocsProvider.id).toBe("google-drive");
     expect(googleDocsProvider.toolPrefix).toBe("gdocs");
     expect(googleDocsProvider.tools.map((t) => t.def.name).sort())
       .toEqual(["append_text", "create_document", "get_document", "list_documents"]);
