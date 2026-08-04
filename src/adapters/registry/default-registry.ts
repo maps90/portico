@@ -89,16 +89,38 @@ const SEEDS: Seed[] = [
     scopes: ["repo", "read:org"],
   },
   {
-    id: "google-docs",
-    displayName: "Google Docs",
+    // One Google connection serving two builtin providers: googleDriveProvider
+    // (gdrive__*, reads Drive, Sheets and Slides) and googleDocsProvider
+    // (gdocs__*, writes Docs). A provider binds to a connection id, so this needs
+    // one OAuth client, one consent and one stored token — not two of each for
+    // the same Google account.
+    //
+    // The id is the env-key segment and the /connect/<id>/callback path segment,
+    // so it must match the OAuth client's registered redirect URI in Google Cloud
+    // exactly: PORTICO_UPSTREAM_GOOGLE_DRIVE_CLIENT_ID and
+    // /connect/google-drive/callback.
+    id: "google-drive",
+    displayName: "Google Drive",
     kind: "builtin",
     defaultMcpUrl: "",
-    toolPrefix: "gdocs",
+    toolPrefix: "gdrive",
     authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth",
     tokenUrl: "https://oauth2.googleapis.com/token",
+    // Five scopes because these are five distinct Google services. `drive.file`
+    // is per-file and only covers what the app itself created or opened, which is
+    // why list_documents worked while an arbitrary Sheet was unreachable;
+    // `drive.readonly` is what widens that to the user's actual Drive. Sheets and
+    // Slides are separate APIs that no Drive scope reaches — without their two
+    // scopes a spreadsheet is still only exportable first-tab-first.
+    //
+    // Everything added here is read-only. The one write scope (documents) is
+    // pre-existing and untouched.
     scopes: [
       "https://www.googleapis.com/auth/documents",
       "https://www.googleapis.com/auth/drive.file",
+      "https://www.googleapis.com/auth/drive.readonly",
+      "https://www.googleapis.com/auth/spreadsheets.readonly",
+      "https://www.googleapis.com/auth/presentations.readonly",
     ],
     authorizeParams: { access_type: "offline", prompt: "consent" },
   },

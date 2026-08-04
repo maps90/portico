@@ -50,7 +50,7 @@ function porticoTools(deps: PorticoServerDeps): PorticoTool[] {
       def: {
         name: "portico__connect",
         description:
-          "Return a URL the user should open to authorize a service (e.g. 'atlassian', 'google-docs', 'github'). Share the URL with the user.",
+          "Return a URL the user should open to authorize a service (e.g. 'atlassian', 'google-drive', 'github'). Share the URL with the user.",
         inputSchema: serviceArg,
       },
       handle: async (user, args) => {
