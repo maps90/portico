@@ -86,7 +86,11 @@ const SEEDS: Seed[] = [
     kind: "proxied",
     authorizationUrl: "https://github.com/login/oauth/authorize",
     tokenUrl: "https://github.com/login/oauth/access_token",
-    scopes: ["repo", "read:org"],
+    // `workflow` is separate from `repo` on purpose: GitHub refuses any write that
+    // touches `.github/workflows/` without it, even when the same token can write
+    // every other path in the repo. Requesting it up front costs one line on the
+    // consent screen and saves a re-consent round the first time someone edits CI.
+    scopes: ["repo", "read:org", "workflow"],
   },
   {
     // One Google connection serving two builtin providers: googleDriveProvider

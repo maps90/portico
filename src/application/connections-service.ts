@@ -58,7 +58,11 @@ export class ConnectionsService {
       else if (conn.status === "expired") state = "expired";
       else state = "connected";
 
-      const actionable = state === "not_connected" || state === "expired";
+      // A live connection still needs its connect URL: when the required scope set
+      // grows, the only way to widen an existing grant is to walk the flow again.
+      // Withholding the URL once state is "connected" leaves missingScopes visible
+      // and nothing to do about it. Only "unavailable" has nowhere to send anyone.
+      const actionable = state !== "unavailable";
       const granted = conn?.scopes ?? [];
       const missing = entry.oauth.scopes.filter((s) => !granted.includes(s));
       return {
