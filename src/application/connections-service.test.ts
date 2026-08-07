@@ -33,14 +33,14 @@ describe("ConnectionsService", () => {
         ["github", entry("github", false)],
       ]),
     );
-    svc = new ConnectionsService({ registry, vault, baseUrl: "https://portico.okadoc.com" });
+    svc = new ConnectionsService({ registry, vault, baseUrl: "https://portico.example.com" });
   });
 
   it("reports a configured-but-unlinked service as not_connected with a connect URL", async () => {
     const list = await svc.list(user);
     const atl = list.find((c) => c.id === "atlassian")!;
     expect(atl.state).toBe("not_connected");
-    expect(atl.connectUrl).toBe("https://portico.okadoc.com/connect/atlassian");
+    expect(atl.connectUrl).toBe("https://portico.example.com/connect/atlassian");
   });
 
   it("reports an unconfigured service as unavailable with no connect URL", async () => {
@@ -63,7 +63,7 @@ describe("ConnectionsService", () => {
     expect(atl.state).toBe("connected");
     // Still offered: widening a grant after the scope list grows means re-running
     // the flow, and there is no other route to it.
-    expect(atl.connectUrl).toBe("https://portico.okadoc.com/connect/atlassian");
+    expect(atl.connectUrl).toBe("https://portico.example.com/connect/atlassian");
   });
 
   it("reflects an expired connection as expired", async () => {
@@ -141,7 +141,7 @@ describe("granted scopes", () => {
     const svc = new ConnectionsService({
       registry: withScopes(["read:me", "read:jira-work", "offline_access"]),
       vault,
-      baseUrl: "https://portico.okadoc.com",
+      baseUrl: "https://portico.example.com",
     });
     await linked(vault, ["read:jira-work", "offline_access"]);
 
@@ -157,7 +157,7 @@ describe("granted scopes", () => {
     const svc = new ConnectionsService({
       registry: withScopes(["read:me", "offline_access"]),
       vault,
-      baseUrl: "https://portico.okadoc.com",
+      baseUrl: "https://portico.example.com",
     });
     await linked(vault, ["offline_access", "read:me"]); // order must not matter
 
