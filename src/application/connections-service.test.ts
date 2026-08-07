@@ -61,7 +61,9 @@ describe("ConnectionsService", () => {
     });
     const atl = (await svc.list(user)).find((c) => c.id === "atlassian")!;
     expect(atl.state).toBe("connected");
-    expect(atl.connectUrl).toBeUndefined();
+    // Still offered: widening a grant after the scope list grows means re-running
+    // the flow, and there is no other route to it.
+    expect(atl.connectUrl).toBe("https://portico.okadoc.com/connect/atlassian");
   });
 
   it("reflects an expired connection as expired", async () => {

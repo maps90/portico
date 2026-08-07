@@ -59,8 +59,12 @@ function porticoTools(deps: PorticoServerDeps): PorticoTool[] {
         const entry = list.find((c) => c.id === service);
         if (!entry) return text(`Unknown service '${service}'. Available: ${list.map((c) => c.id).join(", ")}`);
         if (entry.state === "unavailable") return text(`Service '${service}' is not configured on this Portico instance.`);
-        if (entry.state === "connected") return text(`'${service}' is already connected.`);
-        return text(`Open this URL to connect ${entry.displayName}:\n${entry.connectUrl}`);
+        const missing = entry.missingScopes?.length
+          ? ` It is missing ${entry.missingScopes.join(", ")}; reconnecting is how you grant them.`
+          : "";
+        const prefix =
+          entry.state === "connected" ? `'${service}' is already connected.${missing} ` : "";
+        return text(`${prefix}Open this URL to connect ${entry.displayName}:\n${entry.connectUrl}`);
       },
     },
     {
