@@ -62,6 +62,34 @@ describe("FetchUpstreamOAuthClient", () => {
     expect(tokens.refreshToken).toBe("OLD_RT");
   });
 
+  it("joins scopes with the entry's separator, for Slack's comma list", () => {
+    const slack = { ...entry, oauth: { ...entry.oauth, scopes: ["chat:write", "reactions:write"], scopeSeparator: "," } };
+    const q = new URL(client.buildAuthorizeUrl(slack, "s", "c", "https://portico/cb")).searchParams;
+    expect(q.get("scope")).toBe("chat:write,reactions:write");
+  });
+
+  it("parses a comma-separated granted scope list (Slack, GitHub)", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ ok: true, access_token: "xo" + "xb-test", token_type: "bot", scope: "chat:write,reactions:write" }), {
+        status: 200, headers: { "content-type": "application/json" },
+      }),
+    );
+    const tokens = await client.exchangeCode(entry, "c", "v", "https://portico/cb");
+    expect(tokens.scopes).toEqual(["chat:write", "reactions:write"]);
+    // A Slack bot token without rotation: no expiry, no refresh token.
+    expect(tokens.expiresAt).toBeNull();
+    expect(tokens.refreshToken).toBeNull();
+  });
+
+  it("treats Slack's HTTP 200 {ok:false} as a failure and names the error code", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ ok: false, error: "invalid_code" }), {
+        status: 200, headers: { "content-type": "application/json" },
+      }),
+    );
+    await expect(client.exchangeCode(entry, "c", "v", "https://portico/cb")).rejects.toThrow(/failed: invalid_code/);
+  });
+
   it("throws on a non-2xx token response", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response("bad", { status: 400 }),

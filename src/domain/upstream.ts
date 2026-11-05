@@ -9,6 +9,9 @@ export interface UpstreamOAuth {
   /** Extra static query params on the authorize URL (provider quirks, e.g.
    *  Google's `access_type=offline`, Atlassian's `audience`). */
   authorizeParams?: Record<string, string>;
+  /** How `scopes` are joined on the authorize URL. OAuth says a space; Slack
+   *  wants a comma. Defaults to " ". */
+  scopeSeparator?: string;
 }
 
 export interface UpstreamEntry {

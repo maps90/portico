@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DEFAULT_SLACK_POLICY, type SlackPolicyConfig } from "./domain/slack-policy.js";
 
 /**
  * Typed configuration for portico, parsed from `PORTICO_*` environment variables.
@@ -62,6 +63,14 @@ const schema = z.object({
   PORTICO_ARTIFACT_BLOB_ACCOUNT: z.string().optional(),
   PORTICO_ARTIFACT_CONTAINER: z.string().min(1).default("portico-artifacts"),
   PORTICO_ARTIFACT_BLOB_CONNECTION_STRING: z.string().optional(),
+
+  // Slack bot guardrails (domain/slack-policy.ts). Every one has a safe default.
+  /** Comma-separated reaction names the bot may add. Blank = the default set. */
+  PORTICO_SLACK_ALLOWED_REACTIONS: z.string().optional(),
+  /** Comma-separated channel ids the bot must never write to. */
+  PORTICO_SLACK_DENY_CHANNELS: z.string().optional(),
+  /** Posts per portico user per rolling hour, per instance (the budget is in memory). */
+  PORTICO_SLACK_MAX_POSTS_PER_HOUR: z.coerce.number().int().positive().default(DEFAULT_SLACK_POLICY.maxPostsPerHour),
 });
 
 /** Where artifact bytes live. Azure Blob in production, disk locally. */
@@ -86,6 +95,8 @@ export interface Settings {
   /** Workspace domains allowed to sign in. Empty = any verified Google account. */
   allowedDomains: string[];
   artifact: ArtifactSettings;
+  /** Guardrails for the Slack bot's writes. */
+  slack: SlackPolicyConfig;
 }
 
 const parseDomains = (raw: string | undefined): string[] =>
@@ -93,6 +104,9 @@ const parseDomains = (raw: string | undefined): string[] =>
     .split(",")
     .map((d) => d.trim().toLowerCase())
     .filter((d) => d.length > 0);
+
+const parseList = (raw: string | undefined): string[] =>
+  (raw ?? "").split(",").map((v) => v.trim()).filter((v) => v.length > 0);
 
 export function loadConfig(env: Record<string, string | undefined>): Settings {
   const parsed = schema.safeParse(env);
@@ -130,5 +144,16 @@ export function loadConfig(env: Record<string, string | undefined>): Settings {
     },
     allowedDomains: parseDomains(e.PORTICO_ALLOWED_DOMAINS),
     artifact,
+    slack: {
+      ...DEFAULT_SLACK_POLICY,
+      // A blank allowlist is an ops accident, not "allow no reactions" -- and
+      // certainly not "allow any": fall back to the default set.
+      allowedReactions: (() => {
+        const r = parseList(e.PORTICO_SLACK_ALLOWED_REACTIONS).map((n) => n.replace(/^:|:$/g, ""));
+        return r.length > 0 ? r : DEFAULT_SLACK_POLICY.allowedReactions;
+      })(),
+      denyChannels: parseList(e.PORTICO_SLACK_DENY_CHANNELS),
+      maxPostsPerHour: e.PORTICO_SLACK_MAX_POSTS_PER_HOUR,
+    },
   };
 }

@@ -13,7 +13,15 @@ export interface RestClient {
 }
 
 /** Everything a builtin tool handler is given to do its work. */
-export interface BuiltinCtx { http: RestClient; }
+export interface BuiltinCtx {
+  http: RestClient;
+  /**
+   * The portico user making the call. Optional so a read-only tool (and its test)
+   * need not invent one; a provider that budgets or audits per user (Slack) must
+   * refuse to write without it rather than lump every caller together.
+   */
+  userId?: string;
+}
 
 export interface BuiltinTool {
   /** MCP tool spec; `def.name` is UNPREFIXED (e.g. "search"). */

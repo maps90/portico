@@ -56,6 +56,6 @@ export class BuiltinToolsService {
           `Ask the user to open ${this.connectUrl(provider.id)} to connect.`,
       );
     }
-    return tool.handle({ http: this.deps.makeHttp(fresh.accessToken) }, args);
+    return tool.handle({ http: this.deps.makeHttp(fresh.accessToken), userId: user.id }, args);
   }
 }

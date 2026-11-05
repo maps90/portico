@@ -6,6 +6,9 @@ interface TokenResponse {
   refresh_token?: string;
   expires_in?: number;
   scope?: string;
+  /** Slack: every failure is HTTP 200 with `{ok:false, error}`. */
+  ok?: boolean;
+  error?: string;
 }
 
 /**
@@ -24,7 +27,7 @@ export class FetchUpstreamOAuthClient implements UpstreamOAuthClient {
       client_id: entry.oauth.clientId,
       response_type: "code",
       redirect_uri: redirectUri,
-      scope: entry.oauth.scopes.join(" "),
+      scope: entry.oauth.scopes.join(entry.oauth.scopeSeparator ?? " "),
       state,
       code_challenge: codeChallenge,
       code_challenge_method: "S256",
@@ -80,6 +83,13 @@ export class FetchUpstreamOAuthClient implements UpstreamOAuthClient {
       );
     }
     const json = (await res.json()) as TokenResponse;
+    // Slack reports a bad code, a mismatched redirect_uri or a wrong secret as a
+    // 200 whose body says `ok:false`. Without this it surfaced as "missing
+    // access_token", which names none of those. Only the error code is quoted --
+    // the body of a successful-looking response is never echoed.
+    if (json.ok === false) {
+      throw new Error(`token request to ${entry.id} failed: ${json.error ?? "ok:false"}`);
+    }
     if (!json.access_token) {
       throw new Error(`token response from ${entry.id} missing access_token`);
     }
@@ -87,7 +97,8 @@ export class FetchUpstreamOAuthClient implements UpstreamOAuthClient {
       accessToken: json.access_token,
       refreshToken: json.refresh_token ?? null,
       expiresAt: json.expires_in ? new Date(Date.now() + json.expires_in * 1000) : null,
-      scopes: json.scope ? json.scope.split(/\s+/).filter(Boolean) : entry.oauth.scopes,
+      // Space-separated per RFC 6749; Slack and GitHub return them comma-separated.
+      scopes: json.scope ? json.scope.split(/[\s,]+/).filter(Boolean) : entry.oauth.scopes,
     };
   }
 }
