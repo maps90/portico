@@ -20,6 +20,7 @@ interface Seed {
   tokenUrl: string;
   scopes: string[];
   authorizeParams?: Record<string, string>;
+  scopeSeparator?: string;
 }
 
 const SEEDS: Seed[] = [
@@ -128,6 +129,35 @@ const SEEDS: Seed[] = [
     ],
     authorizeParams: { access_type: "offline", prompt: "consent" },
   },
+  {
+    // A Slack *bot* token (xoxb-), served in-process by slackProvider (slack__*).
+    // Bot, not user, on purpose: replies post as the app, never under the name of
+    // whoever clicked Connect. That is why these are `scope` (bot scopes) and not
+    // `user_scope` -- the token oauth.v2.access hands back as `access_token` is
+    // the bot's. It does not expire and has no refresh token unless token rotation
+    // is turned on for the app, in which case both arrive and the usual refresh
+    // path applies.
+    //
+    // The guardrails on what that bot may write live in domain/slack-policy.ts,
+    // not in these scopes: chat:write cannot be narrowed to "threads only".
+    id: "slack",
+    displayName: "Slack",
+    kind: "builtin",
+    defaultMcpUrl: "",
+    toolPrefix: "slack",
+    authorizationUrl: "https://slack.com/oauth/v2/authorize",
+    tokenUrl: "https://slack.com/api/oauth.v2.access",
+    // The minimum for a send-only bot. No *:history and no users:read: reading
+    // Slack stays on the Slack MCP. The four *:read scopes are not for listing --
+    // the reply/react guard reads conversations.info to refuse Slack Connect
+    // channels, and fails closed without them.
+    scopes: [
+      "chat:write", "reactions:write",
+      "channels:read", "groups:read", "im:read", "mpim:read",
+    ],
+    // Slack's authorize endpoint wants the scope list comma-separated.
+    scopeSeparator: ",",
+  },
 ];
 
 const envKey = (id: string, suffix: string): string =>
@@ -164,6 +194,7 @@ export function buildRegistry(env: Record<string, string | undefined>): Registry
         clientId: env[envKey(s.id, "CLIENT_ID")] ?? "",
         clientSecret: env[envKey(s.id, "CLIENT_SECRET")] ?? "",
         ...(s.authorizeParams ? { authorizeParams: s.authorizeParams } : {}),
+        ...(s.scopeSeparator ? { scopeSeparator: s.scopeSeparator } : {}),
       },
     });
   }

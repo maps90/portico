@@ -52,6 +52,36 @@ describe("loadConfig", () => {
     expect(s.allowedDomains).toEqual(["okadoc.com", "example.org"]);
   });
 
+  it("gives the Slack guardrails safe defaults when nothing is set", () => {
+    expect(loadConfig(valid).slack).toEqual({
+      allowedReactions: ["eyes", "white_check_mark", "pray"],
+      denyChannels: [],
+      maxPostsPerHour: 20,
+      maxMessageLength: 4000,
+    });
+  });
+
+  it("reads the Slack allowlist, deny list and post budget from env", () => {
+    const s = loadConfig({
+      ...valid,
+      PORTICO_SLACK_ALLOWED_REACTIONS: " :eyes: , rocket ",
+      PORTICO_SLACK_DENY_CHANNELS: "C0GENERAL, C0RANDOM",
+      PORTICO_SLACK_MAX_POSTS_PER_HOUR: "5",
+    });
+    expect(s.slack.allowedReactions).toEqual(["eyes", "rocket"]);
+    expect(s.slack.denyChannels).toEqual(["C0GENERAL", "C0RANDOM"]);
+    expect(s.slack.maxPostsPerHour).toBe(5);
+  });
+
+  it("falls back to the default reactions on a blank allowlist, never to 'any'", () => {
+    expect(loadConfig({ ...valid, PORTICO_SLACK_ALLOWED_REACTIONS: " , " }).slack.allowedReactions)
+      .toEqual(["eyes", "white_check_mark", "pray"]);
+  });
+
+  it("rejects a non-positive post budget", () => {
+    expect(() => loadConfig({ ...valid, PORTICO_SLACK_MAX_POSTS_PER_HOUR: "0" })).toThrow(/PORTICO_SLACK_MAX_POSTS_PER_HOUR/);
+  });
+
   it("defaults artifacts to the filesystem when no blob account is set", () => {
     const s = loadConfig(valid);
     expect(s.artifact).toEqual({ kind: "filesystem", dir: ".data/artifacts" });

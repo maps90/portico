@@ -85,3 +85,35 @@ describe("atlassian transport", () => {
     );
   });
 });
+
+describe("slack", () => {
+  const slack = (env: Record<string, string | undefined> = {}) => buildRegistry(env).get("slack")!;
+
+  it("is a builtin bot connection on Slack's v2 OAuth endpoints", () => {
+    const s = slack();
+    expect(s.kind).toBe("builtin");
+    expect(s.toolPrefix).toBe("slack");
+    expect(s.oauth.authorizationUrl).toBe("https://slack.com/oauth/v2/authorize");
+    expect(s.oauth.tokenUrl).toBe("https://slack.com/api/oauth.v2.access");
+    // Slack wants `scope=a,b`; a space-joined list is read as one unknown scope.
+    expect(s.oauth.scopeSeparator).toBe(",");
+  });
+
+  it("asks for the send-only minimum: no history, no user lookups", () => {
+    // Reading Slack stays on the Slack MCP. The *:read scopes are for the
+    // conversations.info Slack Connect check, which fails closed without them.
+    expect([...slack().oauth.scopes].sort()).toEqual(
+      ["channels:read", "chat:write", "groups:read", "im:read", "mpim:read", "reactions:write"],
+    );
+  });
+
+  it("reads its client from PORTICO_UPSTREAM_SLACK_*", () => {
+    const reg = buildRegistry({ PORTICO_UPSTREAM_SLACK_CLIENT_ID: "id", PORTICO_UPSTREAM_SLACK_CLIENT_SECRET: "sec" });
+    expect(reg.isConfigured("slack")).toBe(true);
+    expect(buildRegistry({}).isConfigured("slack")).toBe(false);
+  });
+
+  it("leaves other upstreams on the default space separator", () => {
+    expect(buildRegistry({}).get("google-drive")!.oauth.scopeSeparator).toBeUndefined();
+  });
+});
