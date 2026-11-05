@@ -47,6 +47,20 @@ describe("BuiltinToolsService", () => {
     const res = await s.callTool(user, "jira__search", {});
     expect(res).toEqual({ content: [{ type: "text", text: "hit" }] });
   });
+  it("tells the tool which portico user is calling", async () => {
+    // Slack budgets and audits writes per user; without this every caller would
+    // share one rate limit and the audit log could not say who asked.
+    let seen: string | undefined;
+    const p: BuiltinProvider = { ...provider, tools: [{ ...provider.tools[0]!,
+      handle: async (ctx) => { seen = ctx.userId; return { content: [] }; } }] };
+    const s = new BuiltinToolsService({
+      providers: [p], baseUrl: "https://p", makeHttp: () => fakeHttp,
+      access: { getFresh: async () => okConn("atlassian") } as any,
+    });
+    await s.callTool(user, "jira__search", {});
+    expect(seen).toBe("u1");
+  });
+
   it("prompts reconnect when the token is unavailable", async () => {
     const s = svc(async () => null);
     const res = await s.callTool(user, "jira__search", {});
