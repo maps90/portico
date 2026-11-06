@@ -21,6 +21,8 @@ interface Seed {
   scopes: string[];
   authorizeParams?: Record<string, string>;
   scopeSeparator?: string;
+  scopeParam?: string;
+  tokenFrom?: "authed_user";
 }
 
 const SEEDS: Seed[] = [
@@ -130,15 +132,17 @@ const SEEDS: Seed[] = [
     authorizeParams: { access_type: "offline", prompt: "consent" },
   },
   {
-    // A Slack *bot* token (xoxb-), served in-process by slackProvider (slack__*).
-    // Bot, not user, on purpose: replies post as the app, never under the name of
-    // whoever clicked Connect. That is why these are `scope` (bot scopes) and not
-    // `user_scope` -- the token oauth.v2.access hands back as `access_token` is
-    // the bot's. It does not expire and has no refresh token unless token rotation
-    // is turned on for the app, in which case both arrive and the usual refresh
-    // path applies.
+    // A Slack *user* token (xoxp-), served in-process by slackProvider (slack__*).
+    // User, not bot, on purpose: a reply posts under the name of whoever clicked
+    // Connect, in their voice, with no app label. That is why the scopes go out as
+    // `user_scope` (scopeParam) and the token is read from `authed_user` (tokenFrom):
+    // the top-level `access_token` oauth.v2.access returns is the bot's. The Slack
+    // app must list these under "User Token Scopes". A user token does not expire
+    // unless token rotation is on for the app, in which case a refresh token arrives
+    // too and the usual refresh path applies.
     //
-    // The guardrails on what that bot may write live in domain/slack-policy.ts,
+    // Everything Portico writes to Slack now speaks as a real person, so the
+    // guardrails in domain/slack-policy.ts matter more, not less. They live in code,
     // not in these scopes: chat:write cannot be narrowed to "threads only".
     id: "slack",
     displayName: "Slack",
@@ -147,16 +151,18 @@ const SEEDS: Seed[] = [
     toolPrefix: "slack",
     authorizationUrl: "https://slack.com/oauth/v2/authorize",
     tokenUrl: "https://slack.com/api/oauth.v2.access",
-    // The minimum for a send-only bot. No *:history and no users:read: reading
-    // Slack stays on the Slack MCP. The four *:read scopes are not for listing --
-    // the reply/react guard reads conversations.info to refuse Slack Connect
-    // channels, and fails closed without them.
+    // The minimum for send-only. No *:history and no users:read: reading Slack
+    // stays on the Slack MCP. The four *:read scopes are not for listing. The
+    // reply/react guard reads conversations.info to refuse Slack Connect channels,
+    // and fails closed without them.
     scopes: [
       "chat:write", "reactions:write",
       "channels:read", "groups:read", "im:read", "mpim:read",
     ],
     // Slack's authorize endpoint wants the scope list comma-separated.
     scopeSeparator: ",",
+    scopeParam: "user_scope",
+    tokenFrom: "authed_user",
   },
 ];
 
@@ -195,6 +201,8 @@ export function buildRegistry(env: Record<string, string | undefined>): Registry
         clientSecret: env[envKey(s.id, "CLIENT_SECRET")] ?? "",
         ...(s.authorizeParams ? { authorizeParams: s.authorizeParams } : {}),
         ...(s.scopeSeparator ? { scopeSeparator: s.scopeSeparator } : {}),
+        ...(s.scopeParam ? { scopeParam: s.scopeParam } : {}),
+        ...(s.tokenFrom ? { tokenFrom: s.tokenFrom } : {}),
       },
     });
   }

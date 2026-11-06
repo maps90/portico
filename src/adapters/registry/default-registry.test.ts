@@ -89,7 +89,7 @@ describe("atlassian transport", () => {
 describe("slack", () => {
   const slack = (env: Record<string, string | undefined> = {}) => buildRegistry(env).get("slack")!;
 
-  it("is a builtin bot connection on Slack's v2 OAuth endpoints", () => {
+  it("is a builtin user-token connection on Slack's v2 OAuth endpoints", () => {
     const s = slack();
     expect(s.kind).toBe("builtin");
     expect(s.toolPrefix).toBe("slack");
@@ -97,6 +97,10 @@ describe("slack", () => {
     expect(s.oauth.tokenUrl).toBe("https://slack.com/api/oauth.v2.access");
     // Slack wants `scope=a,b`; a space-joined list is read as one unknown scope.
     expect(s.oauth.scopeSeparator).toBe(",");
+    // User token, so replies post as the person who connected, not as the app:
+    // scopes go out as `user_scope` and the token comes from `authed_user`.
+    expect(s.oauth.scopeParam).toBe("user_scope");
+    expect(s.oauth.tokenFrom).toBe("authed_user");
   });
 
   it("asks for the send-only minimum: no history, no user lookups", () => {
