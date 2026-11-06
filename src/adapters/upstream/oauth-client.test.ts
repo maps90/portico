@@ -90,6 +90,38 @@ describe("FetchUpstreamOAuthClient", () => {
     await expect(client.exchangeCode(entry, "c", "v", "https://portico/cb")).rejects.toThrow(/failed: invalid_code/);
   });
 
+  describe("Slack user-token grant (user_scope / authed_user)", () => {
+    const userSlack: UpstreamEntry = {
+      ...entry, id: "slack",
+      oauth: { ...entry.oauth, authorizeParams: undefined, scopes: ["chat:write", "reactions:write"],
+        scopeSeparator: ",", scopeParam: "user_scope", tokenFrom: "authed_user" },
+    };
+    const respond = (body: unknown) => vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } }),
+    );
+
+    it("sends the scopes as user_scope and no bot scope", () => {
+      const q = new URL(client.buildAuthorizeUrl(userSlack, "s", "c", "https://portico/cb")).searchParams;
+      expect(q.get("user_scope")).toBe("chat:write,reactions:write");
+      expect(q.has("scope")).toBe(false);
+    });
+
+    it("takes the user's token from authed_user, never the bot's top-level one", async () => {
+      respond({ ok: true, access_token: "xo" + "xb-bot", scope: "commands",
+        authed_user: { id: "U1", access_token: "xo" + "xp-user", token_type: "user", scope: "chat:write,reactions:write" } });
+      const tokens = await client.exchangeCode(userSlack, "c", "v", "https://portico/cb");
+      expect(tokens.accessToken).toBe("xo" + "xp-user");
+      expect(tokens.scopes).toEqual(["chat:write", "reactions:write"]);
+      expect(tokens.refreshToken).toBeNull();
+    });
+
+    it("refuses to fall back to the bot token when authed_user has none", async () => {
+      respond({ ok: true, access_token: "xo" + "xb-bot", scope: "chat:write" });
+      await expect(client.exchangeCode(userSlack, "c", "v", "https://portico/cb"))
+        .rejects.toThrow(/missing authed_user\.access_token/);
+    });
+  });
+
   it("throws on a non-2xx token response", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response("bad", { status: 400 }),

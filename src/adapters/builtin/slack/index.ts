@@ -58,8 +58,9 @@ export interface SlackProviderDeps {
  * factory rather than a constant because the guardrails are configured per
  * deployment (allowed reactions, deny list, post budget) and the budget is state.
  *
- * The connection is a *bot* token, so everything here speaks as the app, never
- * as the person who connected it. Send-only by design: exactly `reply` and
+ * The connection is a *user* token, so everything here speaks as the person who
+ * connected it, under their own name. That is the point (a reply in their voice),
+ * and it is why the guardrails below are enforced in code on every write. Send-only by design: exactly `reply` and
  * `react`. Reading Slack stays on the Slack MCP the user already has; there is no
  * read, edit, delete, upload, invite, channel-create or search tool here. The
  * only reads are the ones the guardrails themselves need (conversations.info for
@@ -80,7 +81,7 @@ export function createSlackProvider(
   };
 
   /**
-   * Asks Slack who can see the channel. Fails closed: if the bot cannot read the
+   * Asks Slack who can see the channel. Fails closed: if the token cannot read the
    * channel's info, it cannot know the channel is internal, so it does not post.
    */
   const audience = async (ctx: BuiltinCtx, channel: string): Promise<SlackVerdict> => {
@@ -97,7 +98,7 @@ export function createSlackProvider(
   const tools: BuiltinTool[] = [
     {
       def: { name: "reply", description:
-          "Reply as the portico bot. Outside a DM this ONLY replies inside an existing " +
+          "Reply in Slack as the person who connected Slack to Portico (their own name, no app label). Outside a DM this ONLY replies inside an existing " +
           "thread: thread_ts is required and a new top-level channel post is refused. " +
           "Also refused: Slack Connect / shared channels, @here/@channel/@everyone, any " +
           "text containing credentials, tokens, keys or private IP addresses, text over " +
@@ -128,7 +129,7 @@ export function createSlackProvider(
           // parent, is not reliably an error to chat.postMessage -- it can land as
           // a top-level post, the one thing this tool promises not to do. So the
           // parent is proven first. chat.getPermalink is used rather than
-          // conversations.replies because it needs no *:history scope (the bot is
+          // conversations.replies because it needs no *:history scope (the token is
           // send-only): it fails with message_not_found for a ts that is not in
           // the channel, and a reply's permalink carries `thread_ts=<parent>`.
           const t = await ctx.http.get(`${API}/chat.getPermalink`, { query: { channel, message_ts: threadTs } });
@@ -159,7 +160,7 @@ export function createSlackProvider(
     },
     {
       def: { name: "react", description:
-          `Add an emoji reaction as the portico bot. Only these are allowed: ${cfg.allowedReactions.join(", ")}. ` +
+          `Add an emoji reaction as the person who connected Slack. Only these are allowed: ${cfg.allowedReactions.join(", ")}. ` +
           "Shared / Slack Connect channels are refused.",
         inputSchema: {
           type: "object",

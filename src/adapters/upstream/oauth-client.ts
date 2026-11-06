@@ -1,7 +1,16 @@
 import type { UpstreamOAuthClient, UpstreamTokens } from "../../ports/oauth.js";
 import type { UpstreamEntry } from "../../domain/upstream.js";
 
+interface TokenFields {
+  access_token?: string;
+  refresh_token?: string;
+  expires_in?: number;
+  scope?: string;
+}
+
 interface TokenResponse {
+  /** Slack, user-token grants: the user's own token, beside (or instead of) the bot's. */
+  authed_user?: TokenFields;
   access_token?: string;
   refresh_token?: string;
   expires_in?: number;
@@ -27,7 +36,7 @@ export class FetchUpstreamOAuthClient implements UpstreamOAuthClient {
       client_id: entry.oauth.clientId,
       response_type: "code",
       redirect_uri: redirectUri,
-      scope: entry.oauth.scopes.join(entry.oauth.scopeSeparator ?? " "),
+      [entry.oauth.scopeParam ?? "scope"]: entry.oauth.scopes.join(entry.oauth.scopeSeparator ?? " "),
       state,
       code_challenge: codeChallenge,
       code_challenge_method: "S256",
@@ -90,15 +99,21 @@ export class FetchUpstreamOAuthClient implements UpstreamOAuthClient {
     if (json.ok === false) {
       throw new Error(`token request to ${entry.id} failed: ${json.error ?? "ok:false"}`);
     }
-    if (!json.access_token) {
-      throw new Error(`token response from ${entry.id} missing access_token`);
+    // A user-token grant (Slack `user_scope`) puts the user's token under
+    // `authed_user`. The top-level access_token, if any, is the bot's. Taking that
+    // one would post as the app, which is exactly what a user grant is meant to avoid,
+    // so a missing authed_user token is an error, never a fallback.
+    const t: TokenFields = entry.oauth.tokenFrom === "authed_user" ? (json.authed_user ?? {}) : json;
+    if (!t.access_token) {
+      const where = entry.oauth.tokenFrom === "authed_user" ? "authed_user.access_token" : "access_token";
+      throw new Error(`token response from ${entry.id} missing ${where}`);
     }
     return {
-      accessToken: json.access_token,
-      refreshToken: json.refresh_token ?? null,
-      expiresAt: json.expires_in ? new Date(Date.now() + json.expires_in * 1000) : null,
+      accessToken: t.access_token,
+      refreshToken: t.refresh_token ?? null,
+      expiresAt: t.expires_in ? new Date(Date.now() + t.expires_in * 1000) : null,
       // Space-separated per RFC 6749; Slack and GitHub return them comma-separated.
-      scopes: json.scope ? json.scope.split(/[\s,]+/).filter(Boolean) : entry.oauth.scopes,
+      scopes: t.scope ? t.scope.split(/[\s,]+/).filter(Boolean) : entry.oauth.scopes,
     };
   }
 }

@@ -12,6 +12,13 @@ export interface UpstreamOAuth {
   /** How `scopes` are joined on the authorize URL. OAuth says a space; Slack
    *  wants a comma. Defaults to " ". */
   scopeSeparator?: string;
+  /** Authorize-URL query param that carries `scopes`. OAuth says `scope`; Slack
+   *  asks for *user* token scopes under `user_scope`. Defaults to "scope". */
+  scopeParam?: string;
+  /** Where the token sits in the token response. Default: the top-level
+   *  `access_token`. "authed_user": Slack's user token, returned under
+   *  `authed_user` (the top-level one, when present, is the bot's). */
+  tokenFrom?: "authed_user";
 }
 
 export interface UpstreamEntry {

@@ -75,14 +75,18 @@ Two limits worth knowing before you hit them:
 
 ## Slack guardrails
 
-`slack__*` speaks as the app's **bot user**, never as whoever clicked Connect, and it
-only sends: reading Slack stays on the Slack MCP. There is no read, edit, delete,
+`slack__*` speaks as **the person who clicked Connect**, under their own name with no
+app label. It holds a Slack *user* token (`user_scope`, read from `authed_user`), so the
+Slack app must list `chat:write, reactions:write, channels:read, groups:read, im:read,
+mpim:read` under **User Token Scopes**, and anyone who connected before this change must
+reconnect. Every post is in a real person's voice, which is why the rules below are
+enforced in code. It only sends: reading Slack stays on the Slack MCP. There is no read, edit, delete,
 upload, invite, channel-create or search tool. The rules are code
 (`src/domain/slack-policy.ts`), not prompt, and run before any write call; a refusal
 returns an error naming the rule and **makes no post**:
 
 - **Threads only.** `reply` needs `thread_ts` in any channel that is not a DM (`D…`),
-  and the thread's parent must exist (checked with `chat.getPermalink`) — the bot never
+  and the thread's parent must exist (checked with `chat.getPermalink`), so it never
   starts a top-level channel post.
 - **No Slack Connect.** A channel `conversations.info` reports as `is_ext_shared`,
   `is_shared` or pending-shared is refused, for replies and reactions. If the info
