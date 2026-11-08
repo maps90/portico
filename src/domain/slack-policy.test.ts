@@ -70,6 +70,16 @@ describe("scanText", () => {
 });
 
 describe("checkReply", () => {
+  it("allows a top-level channel post only when allowTopLevelPosts is on, other rules unchanged", () => {
+    const on = { ...cfg(), allowTopLevelPosts: true };
+    expect(checkReply({ channel: "C123", text: "hi" }, on)).toEqual({ allowed: true });
+    expect(checkReply({ channel: "G123", text: "hi" }, on)).toEqual({ allowed: true });
+    expect(rule(checkReply({ channel: "C123", text: "hey <!here>" }, on))).toBe("mass_mention");
+    expect(rule(checkReply({ channel: "C123", text: "db at 10.1.2.3" }, on))).toBe("private_ip");
+    expect(rule(checkReply({ channel: "C0GENERAL", text: "hi" }, { ...on, denyChannels: ["C0GENERAL"] }))).toBe("channel_denied");
+    expect(rule(checkReply({ channel: "C123", threadTs: "nope", text: "hi" }, on))).toBe("bad_thread_ts");
+  });
+
   it("requires thread_ts outside a DM -- the bot never starts a top-level post", () => {
     expect(rule(checkReply({ channel: "C123", text: "hi" }, cfg()))).toBe("thread_required");
     expect(rule(checkReply({ channel: "G123", text: "hi" }, cfg()))).toBe("thread_required");

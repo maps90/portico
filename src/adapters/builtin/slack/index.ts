@@ -8,7 +8,7 @@ import {
   checkReply,
   normalizeReaction,
   type SlackPolicyConfig,
-  type SlackVerdict,
+  type SlackVerdict, isDirectMessage,
 } from "../../../domain/slack-policy.js";
 
 const ok = (v: unknown): CallToolResult => ({
@@ -98,8 +98,12 @@ export function createSlackProvider(
   const tools: BuiltinTool[] = [
     {
       def: { name: "reply", description:
-          "Reply in Slack as the person who connected Slack to Portico (their own name, no app label). Outside a DM this ONLY replies inside an existing " +
-          "thread: thread_ts is required and a new top-level channel post is refused. " +
+          "Reply in Slack as the person who connected Slack to Portico (their own name, no app label). " +
+          (cfg.allowTopLevelPosts
+            ? "Pass thread_ts to reply inside a thread; without it the message is a new top-level post " +
+              "(in a DM, or in an internal channel). "
+            : "Outside a DM this ONLY replies inside an existing thread: thread_ts is required and a new " +
+              "top-level channel post is refused. ") +
           "Also refused: Slack Connect / shared channels, @here/@channel/@everyone, any " +
           "text containing credentials, tokens, keys or private IP addresses, text over " +
           `${cfg.maxMessageLength} characters, and more than ${cfg.maxPostsPerHour} posts ` +
@@ -107,7 +111,9 @@ export function createSlackProvider(
         inputSchema: {
           type: "object",
           properties: { channel: { type: "string", description: "channel id (C…/G…), or a DM id (D…)" },
-            thread_ts: { type: "string", description: "ts of the thread's parent message; required unless channel is a DM" },
+            thread_ts: { type: "string", description: cfg.allowTopLevelPosts
+              ? "ts of the thread's parent message; omit for a new top-level post"
+              : "ts of the thread's parent message; required unless channel is a DM" },
             text: { type: "string", description: "message text (Slack mrkdwn)" } },
           required: ["channel", "text"] } },
       handle: async (ctx, a) => {
@@ -117,6 +123,12 @@ export function createSlackProvider(
         // Order matters: every check that needs no network runs before the first
         // Slack call, so the common violations cost nothing and touch nothing.
         if (!ctx.userId) return refuse(base, { allowed: false, rule: "no_user", reason: "no portico user on the call" });
+        // With top-level posts allowed, a blank thread_ts must not silently become a
+        // top-level post: a caller that sent the field meant a thread. Omit it to post top-level.
+        if (cfg.allowTopLevelPosts && a.thread_ts !== undefined && !threadTs && !isDirectMessage(channel)) {
+          return refuse(base, { allowed: false, rule: "bad_thread_ts",
+            reason: "thread_ts is empty; omit it for a top-level post, or pass the parent message ts" });
+        }
         const v = checkReply({ channel, text: str(a.text), ...(threadTs ? { threadTs } : {}) }, cfg);
         if (!v.allowed) return refuse(base, v);
         const rate = limiter.check(ctx.userId);

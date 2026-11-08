@@ -63,6 +63,64 @@ describe("slackProvider", () => {
     expect(events).toEqual([{ userId: "u1", tool: "reply", channel: "C1", thread_ts: TS, outcome: "posted" }]);
   });
 
+  it("with allowTopLevelPosts, reply starts a top-level channel post (no thread_ts, no parent lookup)", async () => {
+    const { tool, events } = setup({ allowTopLevelPosts: true });
+    const calls: any[] = [];
+    const res = await tool("reply").handle(ctx(http({}, calls)), { channel: "C1", text: "morning, quick update" });
+    expect(res.isError).toBeFalsy();
+    expect(posts(calls)[0][2]).toEqual({ channel: "C1", text: "morning, quick update" });
+    // audience is still checked first; no chat.getPermalink before the post (there is no parent to prove)
+    const gets = calls.filter((c) => c[0] === "GET").map((c) => c[1].split("/api/")[1]);
+    expect(gets).toEqual(["conversations.info", "chat.getPermalink"]);
+    expect(events).toEqual([{ userId: "u1", tool: "reply", channel: "C1", outcome: "posted" }]);
+    expect(tool("reply").def.description).toContain("new top-level post");
+  });
+
+  it("with allowTopLevelPosts, a blank thread_ts is refused instead of silently posting top-level", async () => {
+    const { tool, events } = setup({ allowTopLevelPosts: true });
+    const calls: any[] = [];
+    const res = await tool("reply").handle(ctx(http({}, calls)), { channel: "C1", thread_ts: "", text: "meant for a thread" });
+    expect(res.isError).toBe(true);
+    expect(calls).toEqual([]);
+    expect(events[0]).toMatchObject({ outcome: "refused", rule: "bad_thread_ts" });
+  });
+
+  it("with allowTopLevelPosts, deny list and rate limit still stop a top-level post before any HTTP call", async () => {
+    const denied = setup({ allowTopLevelPosts: true, denyChannels: ["C1"] });
+    const c1: any[] = [];
+    expect((await denied.tool("reply").handle(ctx(http({}, c1)), { channel: "C1", text: "hi" })).isError).toBe(true);
+    expect(c1).toEqual([]);
+    expect(denied.events[0]).toMatchObject({ rule: "channel_denied" });
+    const limited = setup({ allowTopLevelPosts: true, maxPostsPerHour: 1 });
+    await limited.tool("reply").handle(ctx(http()), { channel: "C1", text: "one" });
+    const c2: any[] = [];
+    expect((await limited.tool("reply").handle(ctx(http({}, c2)), { channel: "C1", text: "two" })).isError).toBe(true);
+    expect(posts(c2)).toEqual([]);
+    expect(limited.events.at(-1)).toMatchObject({ rule: "rate_limited" });
+  });
+
+  it("with allowTopLevelPosts, a DM still posts without thread_ts and an external group DM is refused", async () => {
+    const { tool } = setup({ allowTopLevelPosts: true });
+    const dm: any[] = [];
+    expect((await tool("reply").handle(ctx(http({ "conversations.info": { ok: true, channel: { id: "D1" } } }, dm)), { channel: "D1", text: "hey" })).isError).toBeFalsy();
+    expect(posts(dm)[0][2]).toEqual({ channel: "D1", text: "hey" });
+    const g: any[] = [];
+    const res = await tool("reply").handle(ctx(http({ "conversations.info": { ok: true, channel: { id: "G1", is_mpim: true, is_ext_shared: true } } }, g)),
+      { channel: "G1", text: "hi all" });
+    expect(res.isError).toBe(true);
+    expect(posts(g)).toEqual([]);
+  });
+
+  it("with allowTopLevelPosts, a top-level post to a Slack Connect channel is still refused", async () => {
+    const { tool, events } = setup({ allowTopLevelPosts: true });
+    const calls: any[] = [];
+    const res = await tool("reply").handle(ctx(http({ "conversations.info": { ok: true, channel: { id: "C1", is_ext_shared: true } } }, calls)),
+      { channel: "C1", text: "hi partner" });
+    expect(res.isError).toBe(true);
+    expect(posts(calls)).toEqual([]);
+    expect(events[0]).toMatchObject({ outcome: "refused", rule: "shared_channel" });
+  });
+
   it("reply refuses a top-level channel post and makes no HTTP call at all", async () => {
     const { tool, events } = setup();
     const calls: any[] = [];

@@ -52,8 +52,17 @@ describe("loadConfig", () => {
     expect(s.allowedDomains).toEqual(["okadoc.com", "example.org"]);
   });
 
+  it("reads PORTICO_SLACK_ALLOW_TOP_LEVEL_POSTS strictly: off by default, only \"true\" turns it on", () => {
+    expect(loadConfig(valid).slack.allowTopLevelPosts).toBe(false);
+    expect(loadConfig({ ...valid, PORTICO_SLACK_ALLOW_TOP_LEVEL_POSTS: "true" }).slack.allowTopLevelPosts).toBe(true);
+    expect(loadConfig({ ...valid, PORTICO_SLACK_ALLOW_TOP_LEVEL_POSTS: "false" }).slack.allowTopLevelPosts).toBe(false);
+    expect(() => loadConfig({ ...valid, PORTICO_SLACK_ALLOW_TOP_LEVEL_POSTS: "yes" })).toThrow(/PORTICO_SLACK_ALLOW_TOP_LEVEL_POSTS/);
+    expect(() => loadConfig({ ...valid, PORTICO_SLACK_ALLOW_TOP_LEVEL_POSTS: "" })).toThrow(/PORTICO_SLACK_ALLOW_TOP_LEVEL_POSTS/);
+  });
+
   it("gives the Slack guardrails safe defaults when nothing is set", () => {
     expect(loadConfig(valid).slack).toEqual({
+      allowTopLevelPosts: false,
       allowedReactions: ["eyes", "white_check_mark", "pray"],
       denyChannels: [],
       maxPostsPerHour: 20,
