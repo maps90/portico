@@ -40,6 +40,7 @@ on Jira. `make` on its own lists every target.
 | `PORTICO_UPSTREAM_SLACK_CLIENT_ID` / `_SECRET` | api.slack.com/apps → your app → OAuth & Permissions. Redirect URL: `https://<host>/connect/slack/callback` (Slack requires HTTPS). **Bot** token scopes: `chat:write`, `reactions:write`, `channels:read`, `groups:read`, `im:read`, `mpim:read`. See [Slack guardrails](#slack-guardrails). |
 | `PORTICO_SLACK_ALLOWED_REACTIONS` | Optional. Reactions the bot may add, comma-separated. Default `eyes,white_check_mark,pray`. |
 | `PORTICO_SLACK_DENY_CHANNELS` | Optional. Channel ids the bot must never write to, comma-separated. |
+| `PORTICO_SLACK_ALLOW_TOP_LEVEL_POSTS` | Optional, exactly `true` or `false` (default `false`; any other value, even blank, fails startup). `true` lets `reply` start new top-level posts in internal channels; otherwise channels are thread-only. |
 | `PORTICO_SLACK_MAX_POSTS_PER_HOUR` | Optional. Posts per portico user per rolling hour, default `20`. Kept in memory, so it is **per instance**. |
 | `PORTICO_UPSTREAM_GOOGLE_DRIVE_CLIENT_ID` / `_SECRET` | Google Cloud Console → Credentials → OAuth client ID (Web application). Redirect URI: `http://localhost:8080/connect/google-drive/callback`. Enable the Drive, **Sheets**, **Slides** and Docs APIs — Sheets and Slides are separate services, and without them a spreadsheet or deck stays unreadable no matter what Drive grants. |
 
@@ -85,9 +86,13 @@ upload, invite, channel-create or search tool. The rules are code
 (`src/domain/slack-policy.ts`), not prompt, and run before any write call; a refusal
 returns an error naming the rule and **makes no post**:
 
-- **Threads only.** `reply` needs `thread_ts` in any channel that is not a DM (`D…`),
+- **Threads only (default).** `reply` needs `thread_ts` in any channel that is not a DM (`D…`),
   and the thread's parent must exist (checked with `chat.getPermalink`), so it never
-  starts a top-level channel post.
+  starts a top-level channel post. Set `PORTICO_SLACK_ALLOW_TOP_LEVEL_POSTS=true` to let
+  `reply` without `thread_ts` start a new top-level post in an internal channel; every
+  other rule below still applies to those posts (Slack Connect, deny list, mass
+  mentions, secrets, private IPs, length, rate limit). A group DM counts as a channel here.
+  A blank `thread_ts` is refused rather than turned into a top-level post.
 - **No Slack Connect.** A channel `conversations.info` reports as `is_ext_shared`,
   `is_shared` or pending-shared is refused, for replies and reactions. If the info
   cannot be read, the write is refused (fails closed).

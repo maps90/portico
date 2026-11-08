@@ -71,6 +71,11 @@ const schema = z.object({
   PORTICO_SLACK_DENY_CHANNELS: z.string().optional(),
   /** Posts per portico user per rolling hour, per instance (the budget is in memory). */
   PORTICO_SLACK_MAX_POSTS_PER_HOUR: z.coerce.number().int().positive().default(DEFAULT_SLACK_POLICY.maxPostsPerHour),
+  /**
+   * "true" lets `reply` start a new top-level post in an internal channel (no thread_ts).
+   * Exactly "true" or "false": z.coerce.boolean() would read "false" as true.
+   */
+  PORTICO_SLACK_ALLOW_TOP_LEVEL_POSTS: z.enum(["true", "false"]).default("false"),
 });
 
 /** Where artifact bytes live. Azure Blob in production, disk locally. */
@@ -154,6 +159,7 @@ export function loadConfig(env: Record<string, string | undefined>): Settings {
       })(),
       denyChannels: parseList(e.PORTICO_SLACK_DENY_CHANNELS),
       maxPostsPerHour: e.PORTICO_SLACK_MAX_POSTS_PER_HOUR,
+      allowTopLevelPosts: e.PORTICO_SLACK_ALLOW_TOP_LEVEL_POSTS === "true",
     },
   };
 }

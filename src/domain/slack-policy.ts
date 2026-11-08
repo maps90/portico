@@ -21,6 +21,13 @@ export interface SlackPolicyConfig {
   maxPostsPerHour: number;
   /** Characters per message. Slack truncates past 40k; a reply this long is a wall. */
   maxMessageLength: number;
+  /**
+   * Allow new top-level posts in (internal) channels. Off by default: then outside a DM
+   * every message must go in an existing thread. When on, the other rules still apply
+   * unchanged -- shared / Slack Connect channels, the deny list, mass mentions,
+   * secrets, private IPs, length and the hourly budget.
+   */
+  allowTopLevelPosts: boolean;
 }
 
 export const DEFAULT_SLACK_POLICY: SlackPolicyConfig = {
@@ -28,6 +35,7 @@ export const DEFAULT_SLACK_POLICY: SlackPolicyConfig = {
   denyChannels: [],
   maxPostsPerHour: 20,
   maxMessageLength: 4000,
+  allowTopLevelPosts: false,
 };
 
 export type SlackVerdict = { allowed: true } | { allowed: false; rule: string; reason: string };
@@ -110,7 +118,7 @@ export function checkReply(req: ReplyRequest, cfg: SlackPolicyConfig): SlackVerd
   if (req.threadTs !== undefined && !isTs(req.threadTs)) {
     return deny("bad_thread_ts", "thread_ts must be a Slack message timestamp like 1730800000.123456");
   }
-  if (!req.threadTs && !isDirectMessage(req.channel)) {
+  if (!req.threadTs && !isDirectMessage(req.channel) && !cfg.allowTopLevelPosts) {
     return deny("thread_required",
       "replies outside a DM must go in an existing thread: pass thread_ts (the bot never starts a top-level channel post)");
   }
